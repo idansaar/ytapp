@@ -7,6 +7,7 @@ struct ContentView: View {
     @StateObject private var favoritesManager = FavoritesManager()
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
+    @State private var hasAddedToHistory = false // Track if we've already added to history
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,14 +37,18 @@ struct ContentView: View {
                 // Video player window
                 if let videoID = currentVideoID {
                     VideoPlayerView(videoID: videoID) {
-                        // Add to history when playback actually starts
-                        print("🎯 Adding video to history on playback start: \(videoID)")
-                        historyManager.addVideo(id: videoID)
+                        // Add to history when playback actually starts (only once per video)
+                        if !hasAddedToHistory {
+                            print("🎯 Adding video to history on playback start: \(videoID)")
+                            historyManager.addVideo(id: videoID)
+                            hasAddedToHistory = true
+                        }
                     }
                     .aspectRatio(16/9, contentMode: .fit)
                     .frame(maxHeight: 220)
                     .cornerRadius(12)
                     .padding(.horizontal)
+                    .id(videoID) // Use ID to prevent unnecessary updates
                 } else {
                     // Placeholder when no video is selected
                     RoundedRectangle(cornerRadius: 12)
@@ -73,8 +78,7 @@ struct ContentView: View {
             TabView(selection: $selectedTab) {
                 HistoryView(historyManager: historyManager, favoritesManager: favoritesManager) { videoID in
                     print("🎯 Playing video from history: \(videoID)")
-                    currentVideoID = videoID
-                    // Note: History will be updated when playback starts via VideoPlayerView callback
+                    setCurrentVideo(videoID)
                 }
                 .tabItem { 
                     Image(systemName: "clock")
@@ -89,8 +93,7 @@ struct ContentView: View {
                 
                 FavoritesView(favoritesManager: favoritesManager) { videoID in
                     print("⭐ Playing video from favorites: \(videoID)")
-                    currentVideoID = videoID
-                    // Note: History will be updated when playback starts via VideoPlayerView callback
+                    setCurrentVideo(videoID)
                 }
                 .tabItem { 
                     Image(systemName: "star")
@@ -106,9 +109,18 @@ struct ContentView: View {
                 
                 if let videoID = videoID {
                     // Auto-play the new video (history will be added when playback starts)
-                    currentVideoID = videoID
+                    setCurrentVideo(videoID)
                 }
             }
+        }
+    }
+    
+    private func setCurrentVideo(_ videoID: String) {
+        // Only update if it's actually a different video
+        if currentVideoID != videoID {
+            currentVideoID = videoID
+            hasAddedToHistory = false // Reset history flag for new video
+            print("🎬 Set current video to: \(videoID)")
         }
     }
     
@@ -118,7 +130,7 @@ struct ContentView: View {
         if let url = clipboardManager.url {
             print("✅ Using ClipboardManager URL: \(url.absoluteString)")
             if let videoID = extractVideoID(from: url) {
-                currentVideoID = videoID
+                setCurrentVideo(videoID)
                 print("🎬 Playing video: \(videoID)")
             }
         } else {
@@ -153,7 +165,7 @@ struct ContentView: View {
                let match = regex.firstMatch(in: clipboardString, range: NSRange(clipboardString.startIndex..., in: clipboardString)) {
                 let videoID = String(clipboardString[Range(match.range(at: 1), in: clipboardString)!])
                 print("✅ Found video ID: \(videoID)")
-                currentVideoID = videoID
+                setCurrentVideo(videoID)
                 return
             }
         }

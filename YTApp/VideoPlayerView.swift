@@ -13,7 +13,7 @@ struct VideoPlayerView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         
-        // Configure for simulator compatibility
+        // Configure for media playback
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         
@@ -37,15 +37,30 @@ struct VideoPlayerView: UIViewRepresentable {
         webView.configuration.preferences.setValue(true, forKey: "allowUniversalAccessFromFileURLs")
         #endif
         
+        // Store the callback in coordinator
+        context.coordinator.onPlaybackStarted = onPlaybackStarted
+        
+        // Load the HTML content immediately
+        let html = createHTML(for: videoID)
+        webView.loadHTMLString(html, baseURL: nil)
+        
         return webView
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // Update the coordinator with the callback
-        context.coordinator.onPlaybackStarted = onPlaybackStarted
-        
-        // Use a simpler HTML approach for simulator compatibility
-        let html = """
+        // Only update if the video ID has actually changed
+        // This prevents constant reloading
+        if context.coordinator.currentVideoID != videoID {
+            context.coordinator.currentVideoID = videoID
+            context.coordinator.onPlaybackStarted = onPlaybackStarted
+            
+            let html = createHTML(for: videoID)
+            uiView.loadHTMLString(html, baseURL: nil)
+        }
+    }
+    
+    private func createHTML(for videoID: String) -> String {
+        return """
         <!DOCTYPE html>
         <html>
         <head>
@@ -78,6 +93,7 @@ struct VideoPlayerView: UIViewRepresentable {
                     transform: translate(-50%, -50%);
                     color: white;
                     text-align: center;
+                    z-index: 10;
                 }
                 .error-message {
                     color: white;
@@ -95,17 +111,18 @@ struct VideoPlayerView: UIViewRepresentable {
                 </div>
                 <iframe 
                     id="youtube-player"
-                    src="https://www.youtube.com/embed/\(videoID)?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1&enablejsapi=1"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    src="https://www.youtube.com/embed/\(videoID)?autoplay=1&controls=1&playsinline=1&rel=0&modestbranding=1&enablejsapi=1&origin=https://localhost"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowfullscreen
                     style="display: none;">
                 </iframe>
             </div>
             
             <script>
-                console.log('🎬 Loading video: \(videoID)');
+                console.log('🎬 Initializing video player for: \(videoID)');
+                var playbackNotified = false;
                 
-                // Simple approach - show iframe after a delay and trigger callbacks
+                // Show iframe and hide loading after a short delay
                 setTimeout(function() {
                     var loading = document.getElementById('loading');
                     var iframe = document.getElementById('youtube-player');
@@ -113,42 +130,52 @@ struct VideoPlayerView: UIViewRepresentable {
                     if (loading) loading.style.display = 'none';
                     if (iframe) iframe.style.display = 'block';
                     
+                    console.log('🎬 Video iframe displayed for: \(videoID)');
+                    
                     // Notify that video is ready
                     if (window.webkit && window.webkit.messageHandlers) {
                         if (window.webkit.messageHandlers.videoObserver) {
                             window.webkit.messageHandlers.videoObserver.postMessage('YouTube Video \(videoID)');
                         }
                         
-                        // Simulate playback start after iframe loads
-                        setTimeout(function() {
-                            if (window.webkit.messageHandlers.playbackStarted) {
-                                console.log('🎬 Simulating playback start for: \(videoID)');
-                                window.webkit.messageHandlers.playbackStarted.postMessage('\(videoID)');
-                            }
-                        }, 2000);
+                        // Simulate playback start after iframe loads (only once)
+                        if (!playbackNotified) {
+                            setTimeout(function() {
+                                if (window.webkit.messageHandlers.playbackStarted) {
+                                    console.log('🎬 Notifying playback start for: \(videoID)');
+                                    window.webkit.messageHandlers.playbackStarted.postMessage('\(videoID)');
+                                    playbackNotified = true;
+                                }
+                            }, 3000); // Wait 3 seconds for video to start
+                        }
                     }
                 }, 1000);
                 
                 // Error handling for iframe load failures
                 document.getElementById('youtube-player').onerror = function() {
-                    console.error('Failed to load YouTube iframe');
+                    console.error('Failed to load YouTube iframe for: \(videoID)');
                     document.querySelector('.video-container').innerHTML = 
                         '<div class="error-message">' +
                         '<h3>⚠️ Video Load Error</h3>' +
                         '<p>Unable to load video player</p>' +
                         '<p>Video ID: \(videoID)</p>' +
-                        '<p style="font-size: 12px;">This may be due to simulator limitations</p>' +
+                        '<p style="font-size: 12px;">Check your internet connection</p>' +
                         '</div>';
                         
                     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.errorHandler) {
-                        window.webkit.messageHandlers.errorHandler.postMessage('Failed to load video iframe');
+                        window.webkit.messageHandlers.errorHandler.postMessage('Failed to load video iframe for \(videoID)');
                     }
                 };
+                
+                // Prevent page from reloading
+                window.addEventListener('beforeunload', function(e) {
+                    e.preventDefault();
+                    return false;
+                });
             </script>
         </body>
         </html>
         """
-        uiView.loadHTMLString(html, baseURL: nil)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -157,6 +184,7 @@ struct VideoPlayerView: UIViewRepresentable {
 
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         var onPlaybackStarted: (() -> Void)?
+        var currentVideoID: String = ""
         
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             switch message.name {
