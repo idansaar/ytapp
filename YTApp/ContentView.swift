@@ -1,118 +1,145 @@
 import SwiftUI
-import AVKit
+import UIKit
 
 struct ContentView: View {
-    @StateObject private var clipboardMonitor = ClipboardMonitor()
-    @StateObject private var youtubeService = YouTubeService()
-    @State private var showingVideoPlayer = false
-    @State private var currentVideoURL: URL?
-    @State private var showingHistory = false
-    
+    @StateObject private var clipboardManager = ClipboardManager()
+    @StateObject private var historyManager = HistoryManager()
+    @StateObject private var favoritesManager = FavoritesManager()
+    @State private var selectedTab = 0
+    @State private var currentVideoID: String? = nil
+
     var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("YTApp")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding(.top)
-                
-                VStack(spacing: 15) {
-                    Text("Paste & Play")
-                        .font(.title2)
-                        .fontWeight(.semibold)
+        VStack(spacing: 0) {
+            // Top section with video player and paste button
+            VStack(spacing: 16) {
+                // Paste & Play button at the top
+                Button(action: {
+                    print("🔘 Button tapped!")
+                    print("📋 ClipboardManager URL: \(clipboardManager.url?.absoluteString ?? "nil")")
                     
-                    if clipboardMonitor.hasYouTubeURL {
-                        Button(action: {
-                            playFromClipboard()
-                        }) {
-                            HStack {
-                                Image(systemName: "play.circle.fill")
-                                    .font(.title2)
-                                Text("Play from Clipboard")
-                                    .fontWeight(.medium)
-                            }
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.red)
-                            .cornerRadius(10)
-                        }
-                        
-                        if let urlString = clipboardMonitor.detectedURL {
-                            Text("Detected: \(urlString)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
+                    if let url = clipboardManager.url {
+                        print("✅ Using ClipboardManager URL")
+                        currentVideoID = extractVideoID(from: url)
                     } else {
-                        VStack {
-                            Image(systemName: "doc.on.clipboard")
-                                .font(.system(size: 50))
-                                .foregroundColor(.secondary)
-                            Text("Copy a YouTube URL to clipboard")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding()
+                        print("⚠️ ClipboardManager URL is nil, checking clipboard directly")
+                        checkClipboardAndPlay()
                     }
+                    
+                    print("🎥 Current Video ID: \(currentVideoID ?? "nil")")
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: clipboardManager.url != nil ? "doc.on.clipboard.fill" : "doc.on.clipboard")
+                        Text("Paste & Play")
+                    }
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 20)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(clipboardManager.url != nil ? Color.blue : Color.gray)
+                    )
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(15)
+                .buttonStyle(PlainButtonStyle())
                 .padding(.horizontal)
                 
-                Spacer()
-                
-                Button(action: {
-                    showingHistory = true
-                }) {
-                    HStack {
-                        Image(systemName: "clock.arrow.circlepath")
-                        Text("View History")
-                    }
-                    .foregroundColor(.blue)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
+                // Video player window
+                if let videoID = currentVideoID {
+                    VideoPlayerView(videoID: videoID)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .frame(maxHeight: 220)
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                        .onAppear { historyManager.addVideo(id: videoID) }
+                } else {
+                    // Placeholder when no video is selected
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.2))
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .frame(maxHeight: 220)
+                        .overlay(
+                            VStack(spacing: 8) {
+                                Image(systemName: "play.rectangle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray)
+                                Text("Copy a YouTube link and tap 'Paste & Play'")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
+                        )
+                        .padding(.horizontal)
                 }
+            }
+            .padding(.top, 8)
+            .padding(.bottom, 16)
+            .background(Color(.systemBackground))
+            
+            // Tab view for History and Favorites
+            TabView(selection: $selectedTab) {
+                HistoryView(historyManager: historyManager, favoritesManager: favoritesManager) { videoID in
+                    currentVideoID = videoID
+                }
+                .tabItem { 
+                    Image(systemName: "clock")
+                    Text("History") 
+                }.tag(0)
                 
-                Spacer()
+                FavoritesView(favoritesManager: favoritesManager) { videoID in
+                    currentVideoID = videoID
+                }
+                .tabItem { 
+                    Image(systemName: "star")
+                    Text("Favorites") 
+                }.tag(1)
             }
-            .navigationTitle("")
-            .navigationBarHidden(true)
         }
-        .fullScreenCover(isPresented: $showingVideoPlayer) {
-            if let videoURL = currentVideoURL {
-                VideoPlayerView(videoURL: videoURL, isPresented: $showingVideoPlayer)
+        .onReceive(clipboardManager.$url) { url in
+            if let url = url {
+                currentVideoID = extractVideoID(from: url)
             }
-        }
-        .sheet(isPresented: $showingHistory) {
-            HistoryView()
-        }
-        .onAppear {
-            clipboardMonitor.startMonitoring()
-        }
-        .onDisappear {
-            clipboardMonitor.stopMonitoring()
         }
     }
     
-    private func playFromClipboard() {
-        guard let urlString = clipboardMonitor.detectedURL,
-              let videoURL = youtubeService.extractVideoURL(from: urlString) else {
-            return
+    private func checkClipboardAndPlay() {
+        print("🔍 Checking clipboard directly...")
+        if let clipboardString = UIPasteboard.general.string {
+            print("📝 Clipboard content: \(clipboardString)")
+            let patterns = [
+                "(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_\\-]+)",
+                "(?:https?://)?(?:www\\.)?youtu\\.be/([a-zA-Z0-9_\\-]+)",
+                "(?:https?://)?(?:www\\.)?youtube\\.com/embed/([a-zA-Z0-9_\\-]+)"
+            ]
+            
+            for pattern in patterns {
+                if let regex = try? NSRegularExpression(pattern: pattern),
+                   let match = regex.firstMatch(in: clipboardString, range: NSRange(clipboardString.startIndex..., in: clipboardString)) {
+                    let videoID = String(clipboardString[Range(match.range(at: 1), in: clipboardString)!])
+                    print("✅ Found video ID: \(videoID)")
+                    currentVideoID = videoID
+                    return
+                }
+            }
+            print("❌ No YouTube URL found in clipboard")
+        } else {
+            print("❌ Clipboard is empty")
         }
-        
-        currentVideoURL = videoURL
-        showingVideoPlayer = true
-        youtubeService.saveToHistory(urlString: urlString)
     }
-}
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-            .environmentObject(PersistenceController.preview)
+    private func extractVideoID(from url: URL) -> String? {
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let queryItem = components.queryItems?.first(where: { $0.name == "v" }) {
+            return queryItem.value
+        }
+        let path = url.path
+        if path.starts(with: "/embed/") {
+            return String(path.dropFirst("/embed/".count))
+        }
+        if !url.pathExtension.isEmpty {
+            return url.lastPathComponent
+        }
+        return url.lastPathComponent
     }
 }

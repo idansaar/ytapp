@@ -1,107 +1,135 @@
 import SwiftUI
 
 struct HistoryView: View {
-    @EnvironmentObject var persistenceController: PersistenceController
-    @Environment(\.presentationMode) var presentationMode
-    
-    @State private var showingVideoPlayer = false
-    @State private var selectedVideoURL: URL?
-    @StateObject private var youtubeService = YouTubeService()
-    
+    @ObservedObject var historyManager: HistoryManager
+    @ObservedObject var favoritesManager: FavoritesManager
+    var onSelectVideo: (String) -> Void
+
     var body: some View {
         NavigationView {
             List {
-                ForEach(persistenceController.videos) { video in
-                    VideoHistoryRow(video: video) {
-                        playVideo(video)
+                if historyManager.history.isEmpty {
+                    VStack {
+                        Image(systemName: "clock")
+                            .font(.system(size: 50))
+                            .foregroundColor(.gray)
+                        Text("No recently played videos")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                        Text("Videos you play will appear here")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else {
+                    // Random button section
+                    Section {
+                        Button(action: {
+                            if let randomVideo = historyManager.history.randomElement() {
+                                onSelectVideo(randomVideo.id)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "shuffle")
+                                    .foregroundColor(.white)
+                                Text("Play Random Video")
+                                    .foregroundColor(.white)
+                                    .font(.headline)
+                                Spacer()
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.orange)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
+                    }
+                    
+                    // History videos section
+                    Section("Recent Videos") {
+                        ForEach(historyManager.history) { video in
+                            VideoRowView(video: video, isFavorite: favoritesManager.isFavorite(video)) {
+                                onSelectVideo(video.id)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    if let index = historyManager.history.firstIndex(where: { $0.id == video.id }) {
+                                        historyManager.deleteVideo(at: IndexSet(integer: index))
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading) {
+                                if !favoritesManager.isFavorite(video) {
+                                    Button {
+                                        favoritesManager.addFavorite(video)
+                                    } label: {
+                                        Label("Favorite", systemImage: "star")
+                                    }
+                                    .tint(.yellow)
+                                }
+                            }
+                        }
                     }
                 }
-                .onDelete(perform: deleteVideos)
             }
             .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") {
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showingVideoPlayer) {
-            if let videoURL = selectedVideoURL {
-                VideoPlayerView(videoURL: videoURL, isPresented: $showingVideoPlayer)
-            }
-        }
-    }
-    
-    private func playVideo(_ video: VideoHistory) {
-        guard let originalURL = video.originalURL,
-              let videoURL = youtubeService.extractVideoURL(from: originalURL) else {
-            return
-        }
-        
-        selectedVideoURL = videoURL
-        showingVideoPlayer = true
-        
-        video.watchDate = Date()
-        persistenceController.saveVideo(video)
-    }
-    
-    private func deleteVideos(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                let video = persistenceController.videos[index]
-                persistenceController.deleteVideo(video)
-            }
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
 
-struct VideoHistoryRow: View {
-    let video: VideoHistory
+struct VideoRowView: View {
+    let video: Video
+    let isFavorite: Bool
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
-            HStack {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .overlay(
-                        Image(systemName: "play.rectangle")
-                            .foregroundColor(.gray)
-                            .font(.title2)
-                    )
-                    .frame(width: 120, height: 68)
-                    .cornerRadius(8)
-                
+            HStack(spacing: 12) {
+                AsyncImage(url: URL(string: "https://img.youtube.com/vi/\(video.id)/0.jpg")) { image in
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.3))
+                        .overlay(
+                            ProgressView()
+                        )
+                }
+                .frame(width: 120, height: 90)
+                .cornerRadius(8)
+
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(video.title ?? "Unknown Video")
+                    Text(video.title)
                         .font(.headline)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     
-                    if let watchDate = video.watchDate {
-                        Text(formatDate(watchDate))
+                    HStack {
+                        Text(video.timestamp, style: .relative)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        if isFavorite {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                                .font(.caption)
+                        }
                     }
                 }
                 
                 Spacer()
             }
-            .padding(.vertical, 4)
         }
         .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
