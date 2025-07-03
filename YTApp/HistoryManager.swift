@@ -43,6 +43,12 @@ class HistoryManager: ObservableObject {
         history.remove(atOffsets: offsets)
         saveHistory()
     }
+    
+    func clearAllHistory() {
+        history.removeAll()
+        saveHistory()
+        print("🗑️ All history cleared")
+    }
 
     private func fetchVideoTitle(id: String) {
         guard let url = URL(string: "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=\(id)&format=json") else { 

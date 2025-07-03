@@ -30,6 +30,12 @@ class FavoritesManager: ObservableObject {
         favorites.removeAll { $0.id == videoID }
         saveFavorites()
     }
+    
+    func clearAllFavorites() {
+        favorites.removeAll()
+        saveFavorites()
+        print("⭐ All favorites cleared")
+    }
 
     func isFavorite(_ video: Video) -> Bool {
         favorites.contains(where: { $0.id == video.id })

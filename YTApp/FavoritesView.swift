@@ -3,6 +3,7 @@ import SwiftUI
 struct FavoritesView: View {
     @ObservedObject var favoritesManager: FavoritesManager
     let onVideoSelected: (String) -> Void
+    @State private var showingClearAlert = false
     
     var body: some View {
         NavigationView {
@@ -39,12 +40,37 @@ struct FavoritesView: View {
                                     favoritesManager.removeFavorite(videoID: video.id)
                                 }
                             )
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    favoritesManager.removeFavorite(videoID: video.id)
+                                } label: {
+                                    Label("Remove", systemImage: "star.slash")
+                                }
+                            }
                         }
                     }
                 }
             }
             .navigationTitle("Favorites")
             .listStyle(PlainListStyle())
+            .toolbar {
+                if !favoritesManager.favorites.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Clear All") {
+                            showingClearAlert = true
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
+            }
+            .alert("Clear All Favorites", isPresented: $showingClearAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Clear All", role: .destructive) {
+                    favoritesManager.clearAllFavorites()
+                }
+            } message: {
+                Text("This will permanently remove all \(favoritesManager.favorites.count) videos from your favorites. This action cannot be undone.")
+            }
         }
     }
 }

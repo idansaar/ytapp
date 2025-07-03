@@ -4,6 +4,7 @@ struct HistoryView: View {
     @ObservedObject var historyManager: HistoryManager
     @ObservedObject var favoritesManager: FavoritesManager
     let onVideoSelected: (String) -> Void
+    @State private var showingClearAlert = false
     
     var body: some View {
         NavigationView {
@@ -49,7 +50,7 @@ struct HistoryView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     
-                    // Video list
+                    // Video list with swipe actions
                     Section("Recent Videos") {
                         ForEach(historyManager.history) { video in
                             VideoRowView(
@@ -71,12 +72,55 @@ struct HistoryView: View {
                                     }
                                 }
                             )
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                // Delete action
+                                Button(role: .destructive) {
+                                    if let index = historyManager.history.firstIndex(where: { $0.id == video.id }) {
+                                        historyManager.deleteVideo(at: IndexSet(integer: index))
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                                
+                                // Favorite action
+                                Button {
+                                    if favoritesManager.isFavorite(videoID: video.id) {
+                                        favoritesManager.removeFavorite(videoID: video.id)
+                                    } else {
+                                        favoritesManager.addFavorite(videoID: video.id)
+                                    }
+                                } label: {
+                                    Label(
+                                        favoritesManager.isFavorite(videoID: video.id) ? "Unfavorite" : "Favorite",
+                                        systemImage: favoritesManager.isFavorite(videoID: video.id) ? "star.slash" : "star"
+                                    )
+                                }
+                                .tint(favoritesManager.isFavorite(videoID: video.id) ? .orange : .yellow)
+                            }
                         }
                     }
                 }
             }
             .navigationTitle("History")
             .listStyle(PlainListStyle())
+            .toolbar {
+                if !historyManager.history.isEmpty {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Clear All") {
+                            showingClearAlert = true
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
+            }
+            .alert("Clear All History", isPresented: $showingClearAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Clear All", role: .destructive) {
+                    historyManager.clearAllHistory()
+                }
+            } message: {
+                Text("This will permanently delete all \(historyManager.history.count) videos from your history. This action cannot be undone.")
+            }
         }
     }
 }
