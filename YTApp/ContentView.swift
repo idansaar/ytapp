@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var clipboardManager = ClipboardManager()
     @StateObject private var historyManager = HistoryManager()
     @StateObject private var favoritesManager = FavoritesManager()
+    @StateObject private var channelsManager = ChannelsManager()
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
@@ -131,7 +132,12 @@ struct ContentView: View {
                     Text("History") 
                 }.tag(0)
                 
-                ChannelsView()
+                ChannelsView(channelsManager: channelsManager) { videoID in
+                    print("📺 Playing video from channels: \(videoID)")
+                    setCurrentVideo(videoID)
+                    // Mark video as watched in channels
+                    channelsManager.markVideoAsWatched(videoID: videoID)
+                }
                 .tabItem { 
                     Image(systemName: "tv")
                     Text("Channels") 
