@@ -4,11 +4,17 @@ import AVFoundation
 
 struct AVVideoPlayerView: UIViewControllerRepresentable {
     let videoID: String
+    let playbackPositionManager: PlaybackPositionManager
+    let startFromBeginning: Bool
     let onPlaybackStarted: (() -> Void)?
+    let onPlaybackPositionChanged: ((Double, Double) -> Void)?
     
-    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil) {
+    init(videoID: String, playbackPositionManager: PlaybackPositionManager, startFromBeginning: Bool = false, onPlaybackStarted: (() -> Void)? = nil, onPlaybackPositionChanged: ((Double, Double) -> Void)? = nil) {
         self.videoID = videoID
+        self.playbackPositionManager = playbackPositionManager
+        self.startFromBeginning = startFromBeginning
         self.onPlaybackStarted = onPlaybackStarted
+        self.onPlaybackPositionChanged = onPlaybackPositionChanged
     }
     
     func makeUIViewController(context: Context) -> AVPlayerViewController {
@@ -50,6 +56,9 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         
         // Set up player observers
         setupPlayerObservers(player: player, context: context)
+        
+        // Setup coordinator with player for position tracking
+        context.coordinator.setupPlayer(player, for: videoID)
         
         // Start playback
         player.play()
@@ -117,16 +126,93 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPlaybackStarted: onPlaybackStarted)
+        Coordinator(
+            playbackPositionManager: playbackPositionManager,
+            startFromBeginning: startFromBeginning,
+            onPlaybackStarted: onPlaybackStarted,
+            onPlaybackPositionChanged: onPlaybackPositionChanged
+        )
     }
     
     class Coordinator: NSObject {
         let onPlaybackStarted: (() -> Void)?
+        let onPlaybackPositionChanged: ((Double, Double) -> Void)?
+        let playbackPositionManager: PlaybackPositionManager
+        let startFromBeginning: Bool
         var hasNotifiedPlaybackStart = false
         var currentVideoID: String = ""
+        var timeObserver: Any?
+        var player: AVPlayer?
         
-        init(onPlaybackStarted: (() -> Void)?) {
+        init(playbackPositionManager: PlaybackPositionManager, startFromBeginning: Bool, onPlaybackStarted: (() -> Void)?, onPlaybackPositionChanged: ((Double, Double) -> Void)?) {
+            self.playbackPositionManager = playbackPositionManager
+            self.startFromBeginning = startFromBeginning
             self.onPlaybackStarted = onPlaybackStarted
+            self.onPlaybackPositionChanged = onPlaybackPositionChanged
+            super.init()
+        }
+        
+        deinit {
+            removeTimeObserver()
+        }
+        
+        func setupPlayer(_ player: AVPlayer, for videoID: String) {
+            self.player = player
+            self.currentVideoID = videoID
+            
+            // Add time observer for position tracking
+            addTimeObserver()
+            
+            // Restore playback position if not starting from beginning
+            if !startFromBeginning, let savedPosition = playbackPositionManager.getPosition(for: videoID) {
+                let seekTime = CMTime(seconds: savedPosition.position, preferredTimescale: 1000)
+                player.seek(to: seekTime) { [weak self] completed in
+                    if completed {
+                        print("▶️ Resumed playback at \(savedPosition.formattedPosition)")
+                    }
+                }
+            }
+        }
+        
+        private func addTimeObserver() {
+            guard let player = player else { return }
+            
+            // Remove existing observer
+            removeTimeObserver()
+            
+            // Add periodic time observer (every 5 seconds)
+            let interval = CMTime(seconds: 5.0, preferredTimescale: 1000)
+            timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+                self?.handleTimeUpdate(time)
+            }
+        }
+        
+        private func removeTimeObserver() {
+            if let observer = timeObserver, let player = player {
+                player.removeTimeObserver(observer)
+                timeObserver = nil
+            }
+        }
+        
+        private func handleTimeUpdate(_ time: CMTime) {
+            guard let player = player,
+                  let duration = player.currentItem?.duration,
+                  duration.isValid && !duration.isIndefinite else { return }
+            
+            let currentTime = time.seconds
+            let totalDuration = duration.seconds
+            
+            // Save position every 5 seconds
+            if currentTime > 0 && totalDuration > 0 {
+                playbackPositionManager.savePosition(
+                    videoID: currentVideoID,
+                    position: currentTime,
+                    duration: totalDuration
+                )
+                
+                // Notify callback
+                onPlaybackPositionChanged?(currentTime, totalDuration)
+            }
         }
         
         override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
@@ -134,6 +220,10 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
                 switch player.status {
                 case .readyToPlay:
                     print("✅ AVPlayer ready to play (demo content)")
+                    if !hasNotifiedPlaybackStart {
+                        onPlaybackStarted?()
+                        hasNotifiedPlaybackStart = true
+                    }
                 case .failed:
                     print("❌ AVPlayer failed: \(player.error?.localizedDescription ?? "Unknown error")")
                 case .unknown:

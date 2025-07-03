@@ -41,8 +41,10 @@ struct ChannelVideo: Codable, Identifiable, Equatable, Hashable {
     var viewCount: String?
     var isWatched: Bool
     var watchedAt: Date?
+    var playbackPosition: Double? // Position in seconds where playback was last stopped
+    var totalDuration: Double? // Total video duration in seconds
     
-    init(id: String, title: String, channelID: String, channelName: String, publishedAt: Date, thumbnailURL: String? = nil, duration: String? = nil, viewCount: String? = nil, isWatched: Bool = false, watchedAt: Date? = nil) {
+    init(id: String, title: String, channelID: String, channelName: String, publishedAt: Date, thumbnailURL: String? = nil, duration: String? = nil, viewCount: String? = nil, isWatched: Bool = false, watchedAt: Date? = nil, playbackPosition: Double? = nil, totalDuration: Double? = nil) {
         self.id = id
         self.title = title
         self.channelID = channelID
@@ -53,6 +55,20 @@ struct ChannelVideo: Codable, Identifiable, Equatable, Hashable {
         self.viewCount = viewCount
         self.isWatched = isWatched
         self.watchedAt = watchedAt
+        self.playbackPosition = playbackPosition
+        self.totalDuration = totalDuration
+    }
+    
+    // Computed property to check if video was partially watched
+    var isPartiallyWatched: Bool {
+        guard let position = playbackPosition, let duration = totalDuration else { return false }
+        return position > 30 && position < (duration - 30) // At least 30 seconds in, not near the end
+    }
+    
+    // Computed property to get progress percentage
+    var watchProgress: Double {
+        guard let position = playbackPosition, let duration = totalDuration, duration > 0 else { return 0 }
+        return min(position / duration, 1.0)
     }
     
     func hash(into hasher: inout Hasher) {

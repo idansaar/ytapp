@@ -42,7 +42,12 @@ struct ChannelManagementView: View {
             }
             .sheet(isPresented: $showingChannelDetail) {
                 if let channel = selectedChannel {
-                    ChannelDetailView(channel: channel, channelsManager: channelsManager, favoritesManager: favoritesManager)
+                    ChannelDetailView(
+                        channel: channel, 
+                        channelsManager: channelsManager, 
+                        favoritesManager: favoritesManager,
+                        playbackPositionManager: PlaybackPositionManager() // Create a temporary instance
+                    )
                 }
             }
         }

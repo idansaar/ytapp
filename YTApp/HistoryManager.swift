@@ -4,6 +4,28 @@ struct Video: Codable, Identifiable, Equatable, Hashable {
     var id: String
     var title: String
     var timestamp: Date
+    var playbackPosition: Double? // Position in seconds where playback was last stopped
+    var duration: Double? // Total video duration in seconds
+    
+    init(id: String, title: String, timestamp: Date, playbackPosition: Double? = nil, duration: Double? = nil) {
+        self.id = id
+        self.title = title
+        self.timestamp = timestamp
+        self.playbackPosition = playbackPosition
+        self.duration = duration
+    }
+    
+    // Computed property to check if video was partially watched
+    var isPartiallyWatched: Bool {
+        guard let position = playbackPosition, let totalDuration = duration else { return false }
+        return position > 30 && position < (totalDuration - 30) // At least 30 seconds in, not near the end
+    }
+    
+    // Computed property to get progress percentage
+    var watchProgress: Double {
+        guard let position = playbackPosition, let totalDuration = duration, totalDuration > 0 else { return 0 }
+        return min(position / totalDuration, 1.0)
+    }
     
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)

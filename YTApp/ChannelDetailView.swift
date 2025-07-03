@@ -5,17 +5,21 @@ struct ChannelDetailView: View {
     let channel: Channel
     let channelsManager: ChannelsManager
     let favoritesManager: FavoritesManager
+    let playbackPositionManager: PlaybackPositionManager
     let onVideoPlay: ((String) -> Void)?
+    let onVideoPlayFromBeginning: ((String) -> Void)?
     
     @State private var videos: [ChannelVideo] = []
     @State private var showingSettings = false
     @State private var isRefreshing = false
     
-    init(channel: Channel, channelsManager: ChannelsManager, favoritesManager: FavoritesManager, onVideoPlay: ((String) -> Void)? = nil) {
+    init(channel: Channel, channelsManager: ChannelsManager, favoritesManager: FavoritesManager, playbackPositionManager: PlaybackPositionManager, onVideoPlay: ((String) -> Void)? = nil, onVideoPlayFromBeginning: ((String) -> Void)? = nil) {
         self.channel = channel
         self.channelsManager = channelsManager
         self.favoritesManager = favoritesManager
+        self.playbackPositionManager = playbackPositionManager
         self.onVideoPlay = onVideoPlay
+        self.onVideoPlayFromBeginning = onVideoPlayFromBeginning
     }
     
     var body: some View {
@@ -203,12 +207,28 @@ struct ChannelDetailView: View {
                             print("🎬 Playing video: \(video.title)")
                         }
                     },
+                    onPlayFromBeginning: {
+                        // Clear saved position and restart from beginning
+                        playbackPositionManager.clearPosition(for: video.id)
+                        channelsManager.markVideoAsWatched(videoID: video.id)
+                        loadVideos() // Refresh to show updated watch status
+                        
+                        // Use the restart callback if available
+                        if let onVideoPlayFromBeginning = onVideoPlayFromBeginning {
+                            onVideoPlayFromBeginning(video.id)
+                            // Dismiss the detail view to show the main player
+                            presentationMode.wrappedValue.dismiss()
+                        } else {
+                            print("🔄 Restarting video: \(video.title)")
+                        }
+                    },
                     onToggleWatched: {
                         // Toggle watch status
                         channelsManager.markVideoAsWatched(videoID: video.id)
                         loadVideos() // Refresh to show updated status
                     },
-                    favoritesManager: favoritesManager
+                    favoritesManager: favoritesManager,
+                    playbackPositionManager: playbackPositionManager
                 )
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
@@ -242,22 +262,26 @@ struct ChannelVideoRowView: View {
     let video: ChannelVideo
     let showChannelName: Bool
     let onPlay: () -> Void
+    let onPlayFromBeginning: (() -> Void)?
     let onToggleWatched: () -> Void
     let onChannelTap: ((String) -> Void)?
     let favoritesManager: FavoritesManager?
+    let playbackPositionManager: PlaybackPositionManager?
     
-    init(video: ChannelVideo, showChannelName: Bool = false, onPlay: @escaping () -> Void, onToggleWatched: @escaping () -> Void, onChannelTap: ((String) -> Void)? = nil, favoritesManager: FavoritesManager? = nil) {
+    init(video: ChannelVideo, showChannelName: Bool = false, onPlay: @escaping () -> Void, onPlayFromBeginning: (() -> Void)? = nil, onToggleWatched: @escaping () -> Void, onChannelTap: ((String) -> Void)? = nil, favoritesManager: FavoritesManager? = nil, playbackPositionManager: PlaybackPositionManager? = nil) {
         self.video = video
         self.showChannelName = showChannelName
         self.onPlay = onPlay
+        self.onPlayFromBeginning = onPlayFromBeginning
         self.onToggleWatched = onToggleWatched
         self.onChannelTap = onChannelTap
         self.favoritesManager = favoritesManager
+        self.playbackPositionManager = playbackPositionManager
     }
     
     var body: some View {
         HStack(spacing: 12) {
-            // Video thumbnail
+            // Video thumbnail with progress indicator
             ZStack {
                 // Thumbnail image
                 if let thumbnailURL = video.thumbnailURL, let url = URL(string: thumbnailURL) {
@@ -308,8 +332,56 @@ struct ChannelVideoRowView: View {
                         )
                 }
                 
+                // Progress bar for partially watched videos
+                if let playbackManager = playbackPositionManager,
+                   let savedPosition = playbackManager.getPosition(for: video.id),
+                   savedPosition.isPartiallyWatched {
+                    VStack {
+                        Spacer()
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(Color.black.opacity(0.3))
+                                    .frame(height: 3)
+                                
+                                Rectangle()
+                                    .fill(Color.red)
+                                    .frame(width: geometry.size.width * savedPosition.watchProgress, height: 3)
+                            }
+                        }
+                        .frame(height: 3)
+                    }
+                    .frame(width: 120, height: 68)
+                }
+                
                 // Play button overlay
                 VStack {
+                    HStack {
+                        // Resume indicator for partially watched videos
+                        if let playbackManager = playbackPositionManager,
+                           let savedPosition = playbackManager.getPosition(for: video.id),
+                           savedPosition.isPartiallyWatched {
+                            VStack(spacing: 2) {
+                                Image(systemName: "goforward")
+                                    .foregroundColor(.white)
+                                    .font(.caption)
+                                Text(savedPosition.formattedPosition)
+                                    .font(.caption2)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                            }
+                            .padding(4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.black.opacity(0.7))
+                            )
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    Spacer()
+                    
                     Image(systemName: "play.fill")
                         .foregroundColor(.white)
                         .font(.title2)
@@ -339,6 +411,10 @@ struct ChannelVideoRowView: View {
             }
             .onTapGesture {
                 onPlay()
+            }
+            .onLongPressGesture {
+                // Long press to restart from beginning
+                onPlayFromBeginning?()
             }
             
             // Video info
@@ -410,6 +486,18 @@ struct ChannelVideoRowView: View {
         .padding(.vertical, 4)
         .opacity(video.isWatched ? 0.7 : 1.0)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            // Restart action (for videos with saved positions)
+            if let playbackManager = playbackPositionManager,
+               playbackManager.hasPosition(for: video.id) {
+                Button {
+                    playbackManager.clearPosition(for: video.id)
+                    onPlayFromBeginning?()
+                } label: {
+                    Label("Restart", systemImage: "gobackward")
+                }
+                .tint(.blue)
+            }
+            
             // Favorite/Unfavorite action
             if let favoritesManager = favoritesManager {
                 Button {
@@ -580,6 +668,11 @@ struct ChannelDetailView_Previews: PreviewProvider {
             description: "A sample YouTube channel for preview"
         )
         
-        ChannelDetailView(channel: mockChannel, channelsManager: ChannelsManager(), favoritesManager: FavoritesManager())
+        ChannelDetailView(
+            channel: mockChannel, 
+            channelsManager: ChannelsManager(), 
+            favoritesManager: FavoritesManager(),
+            playbackPositionManager: PlaybackPositionManager()
+        )
     }
 }

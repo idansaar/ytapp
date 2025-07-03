@@ -6,11 +6,13 @@ struct ContentView: View {
     @StateObject private var historyManager = HistoryManager()
     @StateObject private var favoritesManager = FavoritesManager()
     @StateObject private var channelsManager = ChannelsManager()
+    @StateObject private var playbackPositionManager = PlaybackPositionManager()
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
     @State private var useAVPlayer = false // Toggle between WebKit and AVKit players
     @State private var showPlayerSettings = false
+    @State private var startFromBeginning = false // Flag to control resume vs restart
 
     var body: some View {
         VStack(spacing: 0) {
@@ -54,11 +56,20 @@ struct ContentView: View {
                 if let videoID = currentVideoID {
                     Group {
                         if useAVPlayer {
-                            // AVKit player with PiP support
-                            AVVideoPlayerView(videoID: videoID) {
-                                // History already added in setCurrentVideo, just log playback start
-                                print("▶️ AVPlayer playback started for: \(videoID)")
-                            }
+                            // AVKit player with PiP support and position tracking
+                            AVVideoPlayerView(
+                                videoID: videoID,
+                                playbackPositionManager: playbackPositionManager,
+                                startFromBeginning: startFromBeginning,
+                                onPlaybackStarted: {
+                                    // History already added in setCurrentVideo, just log playback start
+                                    print("▶️ AVPlayer playback started for: \(videoID)")
+                                },
+                                onPlaybackPositionChanged: { position, duration in
+                                    // Position is automatically saved by PlaybackPositionManager
+                                    print("⏱️ Playback position: \(Int(position))/\(Int(duration)) seconds")
+                                }
+                            )
                             .aspectRatio(16/9, contentMode: .fit)
                             .frame(maxHeight: 220)
                             .cornerRadius(12)
@@ -132,12 +143,25 @@ struct ContentView: View {
                     Text("History") 
                 }.tag(0)
                 
-                ChannelsView(channelsManager: channelsManager, favoritesManager: favoritesManager) { videoID in
-                    print("📺 Playing video from channels: \(videoID)")
-                    setCurrentVideo(videoID)
-                    // Mark video as watched in channels
-                    channelsManager.markVideoAsWatched(videoID: videoID)
-                }
+                ChannelsView(
+                    channelsManager: channelsManager, 
+                    favoritesManager: favoritesManager,
+                    playbackPositionManager: playbackPositionManager,
+                    onVideoPlay: { videoID in
+                        print("📺 Playing video from channels: \(videoID)")
+                        startFromBeginning = false // Resume from saved position
+                        setCurrentVideo(videoID)
+                        // Mark video as watched in channels
+                        channelsManager.markVideoAsWatched(videoID: videoID)
+                    },
+                    onVideoPlayFromBeginning: { videoID in
+                        print("🔄 Restarting video from beginning: \(videoID)")
+                        startFromBeginning = true // Start from beginning
+                        setCurrentVideo(videoID)
+                        // Mark video as watched in channels
+                        channelsManager.markVideoAsWatched(videoID: videoID)
+                    }
+                )
                 .tabItem { 
                     Image(systemName: "tv")
                     Text("Channels") 
