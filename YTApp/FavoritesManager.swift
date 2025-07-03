@@ -49,6 +49,27 @@ class FavoritesManager: ObservableObject {
         saveFavorites()
     }
     
+    func promoteVideoToTop(videoID: String, title: String = "YouTube Video") {
+        // Check if video exists in favorites
+        if let existingIndex = favorites.firstIndex(where: { $0.id == videoID }) {
+            // Remove the existing video
+            let existingVideo = favorites.remove(at: existingIndex)
+            
+            // Create updated video with current timestamp and preserved title
+            let updatedVideo = Video(
+                id: videoID,
+                title: existingVideo.title.isEmpty || existingVideo.title == "YouTube Video" ? title : existingVideo.title,
+                timestamp: Date() // Current time for "most recently played" ordering
+            )
+            
+            // Insert at the beginning (most recent)
+            favorites.insert(updatedVideo, at: 0)
+            saveFavorites()
+            
+            print("⭐ Promoted favorite video to top: \(videoID)")
+        }
+    }
+    
     func clearAllFavorites() {
         favorites.removeAll()
         saveFavorites()

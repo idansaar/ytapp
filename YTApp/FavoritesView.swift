@@ -52,7 +52,7 @@ struct FavoritesView: View {
                     
                     // Favorite videos list with native swipe actions
                     Section("Favorite Videos") {
-                        ForEach(favoritesManager.favorites.sorted { $0.timestamp > $1.timestamp }) { video in
+                        ForEach(favoritesManager.favorites) { video in
                             FavoriteVideoRowView(
                                 video: video,
                                 onVideoTap: {
@@ -63,7 +63,7 @@ struct FavoritesView: View {
                                 Button(role: .destructive) {
                                     favoritesManager.removeFavorite(videoID: video.id)
                                 } label: {
-                                    Label("Remove", systemImage: "star.slash")
+                                    Label("UnFavorite", systemImage: "star.slash")
                                 }
                             }
                         }

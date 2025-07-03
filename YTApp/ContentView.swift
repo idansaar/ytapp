@@ -181,6 +181,13 @@ struct ContentView: View {
         if currentVideoID != videoID {
             currentVideoID = videoID
             hasAddedToHistory = false // Reset history flag for new video
+            
+            // Try to get video title from history for better metadata
+            let videoTitle = historyManager.history.first(where: { $0.id == videoID })?.title ?? "YouTube Video"
+            
+            // Promote video to top of favorites if it exists there
+            favoritesManager.promoteVideoToTop(videoID: videoID, title: videoTitle)
+            
             print("🎬 Set current video to: \(videoID)")
         }
     }
