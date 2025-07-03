@@ -258,16 +258,69 @@ struct ChannelVideoRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             // Video thumbnail
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.gray.opacity(0.3))
-                .frame(width: 120, height: 68)
-                .overlay(
-                    VStack {
-                        Image(systemName: "play.fill")
-                            .foregroundColor(.white)
-                            .font(.title2)
-                        
-                        if let duration = video.duration {
+            ZStack {
+                // Thumbnail image
+                if let thumbnailURL = video.thumbnailURL, let url = URL(string: thumbnailURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 120, height: 68)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                        case .failure(_):
+                            // Error loading image - show fallback
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 120, height: 68)
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .foregroundColor(.gray)
+                                        .font(.title2)
+                                )
+                        case .empty:
+                            // Loading state
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: 120, height: 68)
+                                .overlay(
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                        .tint(.gray)
+                                )
+                        @unknown default:
+                            // Fallback for unknown states
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 120, height: 68)
+                        }
+                    }
+                } else {
+                    // No thumbnail URL - show fallback
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 120, height: 68)
+                        .overlay(
+                            Image(systemName: "video")
+                                .foregroundColor(.gray)
+                                .font(.title2)
+                        )
+                }
+                
+                // Play button overlay
+                VStack {
+                    Image(systemName: "play.fill")
+                        .foregroundColor(.white)
+                        .font(.title2)
+                        .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    
+                    Spacer()
+                    
+                    // Duration badge
+                    if let duration = video.duration {
+                        HStack {
+                            Spacer()
                             Text(duration)
                                 .font(.caption)
                                 .fontWeight(.medium)
@@ -280,10 +333,13 @@ struct ChannelVideoRowView: View {
                                 )
                         }
                     }
-                )
-                .onTapGesture {
-                    onPlay()
                 }
+                .frame(width: 120, height: 68)
+                .padding(4)
+            }
+            .onTapGesture {
+                onPlay()
+            }
             
             // Video info
             VStack(alignment: .leading, spacing: 4) {

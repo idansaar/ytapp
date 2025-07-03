@@ -301,6 +301,12 @@ class YouTubeAPIService: ObservableObject {
                 let publishedAt: Date = parseDate(item.snippet.publishedAt) ?? Date()
                 let thumbnailURL: String? = item.snippet.thumbnails.medium?.url
                 
+                if let thumbURL = thumbnailURL {
+                    print("🖼️ Thumbnail URL: \(thumbURL)")
+                } else {
+                    print("⚠️ No thumbnail URL for video: \(title)")
+                }
+                
                 var duration: String? = nil
                 if let d = videoDetail?.contentDetails?.duration {
                     duration = formatDuration(d)
