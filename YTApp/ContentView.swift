@@ -66,16 +66,21 @@ struct ContentView: View {
                             .frame(maxHeight: 220)
                             .cornerRadius(12)
                             .overlay(
-                                // PiP indicator
+                                // Demo mode indicator
                                 VStack {
                                     HStack {
                                         Spacer()
-                                        Text("PiP")
-                                            .font(.caption2)
-                                            .padding(4)
-                                            .background(Color.blue)
-                                            .foregroundColor(.white)
-                                            .cornerRadius(4)
+                                        VStack(spacing: 2) {
+                                            Text("DEMO")
+                                                .font(.caption2)
+                                                .fontWeight(.bold)
+                                            Text("PiP Mode")
+                                                .font(.caption2)
+                                        }
+                                        .padding(6)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(6)
                                     }
                                     Spacer()
                                 }

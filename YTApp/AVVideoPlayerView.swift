@@ -54,9 +54,12 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         // Start playback
         player.play()
         
-        // Show demo message after a short delay
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            self.showDemoAlert(on: controller)
+        // Show demo message after video starts playing (longer delay)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            // Only show alert if the player is still active and ready
+            if player.status == .readyToPlay {
+                self.showDemoAlert(on: controller)
+            }
         }
     }
     
@@ -69,13 +72,20 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
     private func showDemoAlert(on controller: AVPlayerViewController) {
         let alert = UIAlertController(
             title: "AVKit Demo Mode",
-            message: "This is playing a sample video to demonstrate Picture-in-Picture capabilities.\n\nYouTube videos require direct stream URLs which need special extraction services in production apps.",
+            message: "This demonstrates Picture-in-Picture and background playback capabilities using sample content.\n\nFor YouTube videos, production apps need youtube-dl or similar services to extract direct video URLs.",
             preferredStyle: .alert
         )
         
         alert.addAction(UIAlertAction(title: "Got it", style: .default))
+        alert.addAction(UIAlertAction(title: "Don't show again", style: .cancel) { _ in
+            // Store preference to not show this alert again
+            UserDefaults.standard.set(true, forKey: "AVKitDemoAlertShown")
+        })
         
-        controller.present(alert, animated: true)
+        // Only show if user hasn't dismissed it before
+        if !UserDefaults.standard.bool(forKey: "AVKitDemoAlertShown") {
+            controller.present(alert, animated: true)
+        }
     }
     
     private func configureAudioSession() {
