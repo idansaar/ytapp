@@ -7,6 +7,7 @@ class ClipboardManager: ObservableObject {
     private var pasteboard = UIPasteboard.general
     private var timer: Timer?
     private var lastChangeCount: Int = 0
+    private var lastKnownURL: String?
 
     init() {
         // Check current clipboard content on initialization
@@ -17,29 +18,54 @@ class ClipboardManager: ObservableObject {
     }
     
     private func startMonitoring() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
             self.checkClipboard()
         }
     }
     
     private func checkClipboard() {
-        let currentChangeCount = pasteboard.changeCount
-        
-        // Only check if clipboard content has changed
-        if currentChangeCount != lastChangeCount {
-            lastChangeCount = currentChangeCount
-            
-            if let clipboardString = pasteboard.string {
-                let extractedURL = extractYouTubeURL(from: clipboardString)
-                
-                DispatchQueue.main.async {
-                    self.url = extractedURL
-                }
-            } else {
+        // Safely access pasteboard with error handling
+        guard pasteboard.hasStrings else {
+            // No string content available
+            if url != nil {
                 DispatchQueue.main.async {
                     self.url = nil
                 }
             }
+            return
+        }
+        
+        do {
+            let currentChangeCount = pasteboard.changeCount
+            
+            // Only check if clipboard content has changed
+            if currentChangeCount != lastChangeCount {
+                lastChangeCount = currentChangeCount
+                
+                // Safely get clipboard string
+                guard let clipboardString = pasteboard.string else {
+                    DispatchQueue.main.async {
+                        self.url = nil
+                    }
+                    return
+                }
+                
+                // Avoid processing the same URL repeatedly
+                if clipboardString == lastKnownURL {
+                    return
+                }
+                
+                let extractedURL = extractYouTubeURL(from: clipboardString)
+                lastKnownURL = clipboardString
+                
+                DispatchQueue.main.async {
+                    self.url = extractedURL
+                }
+            }
+        } catch {
+            // Handle pasteboard access errors silently
+            print("📋 Clipboard access temporarily unavailable: \(error.localizedDescription)")
+            // Don't update URL on error to maintain current state
         }
     }
 

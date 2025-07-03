@@ -35,15 +35,15 @@ struct ContentView: View {
                 
                 // Video player window
                 if let videoID = currentVideoID {
-                    VideoPlayerView(videoID: videoID)
-                        .aspectRatio(16/9, contentMode: .fit)
-                        .frame(maxHeight: 220)
-                        .cornerRadius(12)
-                        .padding(.horizontal)
-                        .onAppear { 
-                            print("🎬 Video player appeared for ID: \(videoID)")
-                            historyManager.addVideo(id: videoID) 
-                        }
+                    VideoPlayerView(videoID: videoID) {
+                        // Add to history when playback actually starts
+                        print("🎯 Adding video to history on playback start: \(videoID)")
+                        historyManager.addVideo(id: videoID)
+                    }
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .frame(maxHeight: 220)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
                 } else {
                     // Placeholder when no video is selected
                     RoundedRectangle(cornerRadius: 12)
@@ -74,6 +74,7 @@ struct ContentView: View {
                 HistoryView(historyManager: historyManager, favoritesManager: favoritesManager) { videoID in
                     print("🎯 Playing video from history: \(videoID)")
                     currentVideoID = videoID
+                    // Note: History will be updated when playback starts via VideoPlayerView callback
                 }
                 .tabItem { 
                     Image(systemName: "clock")
@@ -89,6 +90,7 @@ struct ContentView: View {
                 FavoritesView(favoritesManager: favoritesManager) { videoID in
                     print("⭐ Playing video from favorites: \(videoID)")
                     currentVideoID = videoID
+                    // Note: History will be updated when playback starts via VideoPlayerView callback
                 }
                 .tabItem { 
                     Image(systemName: "star")
@@ -103,7 +105,7 @@ struct ContentView: View {
                 print("🎥 Extracted video ID: \(videoID ?? "nil")")
                 
                 if let videoID = videoID {
-                    // Auto-play the new video
+                    // Auto-play the new video (history will be added when playback starts)
                     currentVideoID = videoID
                 }
             }
@@ -127,27 +129,35 @@ struct ContentView: View {
     
     private func checkClipboardDirectly() {
         print("🔍 Checking clipboard directly...")
-        if let clipboardString = UIPasteboard.general.string {
-            print("📝 Clipboard content: \(clipboardString)")
-            let patterns = [
-                "(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_\\-]+)",
-                "(?:https?://)?(?:www\\.)?youtu\\.be/([a-zA-Z0-9_\\-]+)",
-                "(?:https?://)?(?:www\\.)?youtube\\.com/embed/([a-zA-Z0-9_\\-]+)"
-            ]
-            
-            for pattern in patterns {
-                if let regex = try? NSRegularExpression(pattern: pattern),
-                   let match = regex.firstMatch(in: clipboardString, range: NSRange(clipboardString.startIndex..., in: clipboardString)) {
-                    let videoID = String(clipboardString[Range(match.range(at: 1), in: clipboardString)!])
-                    print("✅ Found video ID: \(videoID)")
-                    currentVideoID = videoID
-                    return
-                }
-            }
-            print("❌ No YouTube URL found in clipboard")
-        } else {
-            print("❌ Clipboard is empty")
+        
+        // Use a safer approach to check clipboard
+        guard UIPasteboard.general.hasStrings else {
+            print("❌ No string content in clipboard")
+            return
         }
+        
+        guard let clipboardString = UIPasteboard.general.string else {
+            print("❌ Could not access clipboard string")
+            return
+        }
+        
+        print("📝 Clipboard content: \(clipboardString)")
+        let patterns = [
+            "(?:https?://)?(?:www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_\\-]+)",
+            "(?:https?://)?(?:www\\.)?youtu\\.be/([a-zA-Z0-9_\\-]+)",
+            "(?:https?://)?(?:www\\.)?youtube\\.com/embed/([a-zA-Z0-9_\\-]+)"
+        ]
+        
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: clipboardString, range: NSRange(clipboardString.startIndex..., in: clipboardString)) {
+                let videoID = String(clipboardString[Range(match.range(at: 1), in: clipboardString)!])
+                print("✅ Found video ID: \(videoID)")
+                currentVideoID = videoID
+                return
+            }
+        }
+        print("❌ No YouTube URL found in clipboard")
     }
 
     private func extractVideoID(from url: URL) -> String? {
