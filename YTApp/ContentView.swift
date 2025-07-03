@@ -55,12 +55,8 @@ struct ContentView: View {
                         if useAVPlayer {
                             // AVKit player with PiP support
                             AVVideoPlayerView(videoID: videoID) {
-                                // Add to history when playback actually starts (only once per video)
-                                if !hasAddedToHistory {
-                                    print("🎯 Adding video to history on AVPlayer playback start: \(videoID)")
-                                    historyManager.addVideo(id: videoID)
-                                    hasAddedToHistory = true
-                                }
+                                // History already added in setCurrentVideo, just log playback start
+                                print("▶️ AVPlayer playback started for: \(videoID)")
                             }
                             .aspectRatio(16/9, contentMode: .fit)
                             .frame(maxHeight: 220)
@@ -89,12 +85,8 @@ struct ContentView: View {
                         } else {
                             // WebKit player (original)
                             VideoPlayerView(videoID: videoID) {
-                                // Add to history when playback actually starts (only once per video)
-                                if !hasAddedToHistory {
-                                    print("🎯 Adding video to history on WebKit playback start: \(videoID)")
-                                    historyManager.addVideo(id: videoID)
-                                    hasAddedToHistory = true
-                                }
+                                // History already added in setCurrentVideo, just log playback start
+                                print("▶️ WebKit playback started for: \(videoID)")
                             }
                             .aspectRatio(16/9, contentMode: .fit)
                             .frame(maxHeight: 220)
@@ -181,6 +173,10 @@ struct ContentView: View {
         if currentVideoID != videoID {
             currentVideoID = videoID
             hasAddedToHistory = false // Reset history flag for new video
+            
+            // Add to history immediately (like favorites promotion)
+            historyManager.addVideo(id: videoID)
+            hasAddedToHistory = true
             
             // Try to get video title from history for better metadata
             let videoTitle = historyManager.history.first(where: { $0.id == videoID })?.title ?? "YouTube Video"
