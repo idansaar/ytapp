@@ -66,9 +66,16 @@ struct PlayerSettingsView: View {
                 Section(header: Text("Features")) {
                     FeatureRow(
                         icon: "safari",
-                        title: "Web Compatibility",
-                        description: "Works with all YouTube videos",
+                        title: "YouTube Compatibility",
+                        description: "Plays actual YouTube videos",
                         available: !useAVPlayer
+                    )
+                    
+                    FeatureRow(
+                        icon: "play.rectangle",
+                        title: "Demo Content",
+                        description: "Shows sample video for PiP demonstration",
+                        available: useAVPlayer
                     )
                     
                     FeatureRow(
@@ -93,7 +100,7 @@ struct PlayerSettingsView: View {
                     )
                 }
                 
-                Section(footer: Text("Note: AVKit player requires direct video URLs. Some YouTube videos may not be available due to embedding restrictions.")) {
+                Section(footer: Text("Note: AVKit player currently shows demo content because YouTube videos require direct stream URLs. In production, this would use youtube-dl or similar services to extract playable URLs from YouTube.")) {
                     EmptyView()
                 }
             }

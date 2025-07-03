@@ -18,7 +18,7 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         controller.allowsPictureInPicturePlayback = true
         controller.canStartPictureInPictureAutomaticallyFromInline = true
         
-        // Set up the player with YouTube URL
+        // Set up the player with demonstration content
         setupPlayer(for: controller, context: context)
         
         return controller
@@ -26,8 +26,8 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
         // Update player if video ID changes
-        if let currentURL = uiViewController.player?.currentItem?.asset as? AVURLAsset,
-           !currentURL.url.absoluteString.contains(videoID) {
+        if context.coordinator.currentVideoID != videoID {
+            context.coordinator.currentVideoID = videoID
             setupPlayer(for: uiViewController, context: context)
         }
     }
@@ -36,13 +36,16 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         // Configure audio session for background playback
         configureAudioSession()
         
-        // Create YouTube URL - using direct video URL for AVPlayer
-        // Note: In production, you'd use youtube-dl or similar service to get direct video URLs
-        // For now, we'll use a placeholder approach
-        let youtubeURL = createYouTubeURL(for: videoID)
+        // For demonstration purposes, we'll use Apple's sample video
+        // In production, you would need to:
+        // 1. Use YouTube Data API to get video metadata
+        // 2. Use youtube-dl, yt-dlp, or similar service to extract direct video URLs
+        // 3. Handle different video qualities and formats
+        
+        let demoURL = createDemoURL(for: videoID)
         
         // Create AVPlayer
-        let player = AVPlayer(url: youtubeURL)
+        let player = AVPlayer(url: demoURL)
         controller.player = player
         
         // Set up player observers
@@ -50,17 +53,29 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         
         // Start playback
         player.play()
+        
+        // Show demo message after a short delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            self.showDemoAlert(on: controller)
+        }
     }
     
-    private func createYouTubeURL(for videoID: String) -> URL {
-        // This is a placeholder - in production you'd need to:
-        // 1. Use YouTube Data API to get video info
-        // 2. Use youtube-dl or similar to extract direct video URLs
-        // 3. Handle different quality options
+    private func createDemoURL(for videoID: String) -> URL {
+        // Using Apple's sample video for demonstration
+        // This shows that AVKit player works, but YouTube requires special handling
+        return URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8") ?? URL(string: "https://www.apple.com")!
+    }
+    
+    private func showDemoAlert(on controller: AVPlayerViewController) {
+        let alert = UIAlertController(
+            title: "AVKit Demo Mode",
+            message: "This is playing a sample video to demonstrate Picture-in-Picture capabilities.\n\nYouTube videos require direct stream URLs which need special extraction services in production apps.",
+            preferredStyle: .alert
+        )
         
-        // For now, return a placeholder URL that won't work but demonstrates the structure
-        // In a real app, this would be replaced with actual video stream URLs
-        return URL(string: "https://www.youtube.com/watch?v=\(videoID)") ?? URL(string: "https://www.apple.com")!
+        alert.addAction(UIAlertAction(title: "Got it", style: .default))
+        
+        controller.present(alert, animated: true)
     }
     
     private func configureAudioSession() {
@@ -82,15 +97,6 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         player.addObserver(context.coordinator, forKeyPath: "status", options: [.new], context: nil)
         
         // Observe playback start
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: player.currentItem,
-            queue: .main
-        ) { _ in
-            print("🎬 Video playback completed")
-        }
-        
-        // Observe when playback actually starts
         player.addPeriodicTimeObserver(forInterval: CMTime(seconds: 1, preferredTimescale: 1), queue: .main) { time in
             if time.seconds > 0 && context.coordinator.hasNotifiedPlaybackStart == false {
                 context.coordinator.hasNotifiedPlaybackStart = true
@@ -107,6 +113,7 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
     class Coordinator: NSObject {
         let onPlaybackStarted: (() -> Void)?
         var hasNotifiedPlaybackStart = false
+        var currentVideoID: String = ""
         
         init(onPlaybackStarted: (() -> Void)?) {
             self.onPlaybackStarted = onPlaybackStarted
@@ -116,7 +123,7 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
             if keyPath == "status", let player = object as? AVPlayer {
                 switch player.status {
                 case .readyToPlay:
-                    print("✅ AVPlayer ready to play")
+                    print("✅ AVPlayer ready to play (demo content)")
                 case .failed:
                     print("❌ AVPlayer failed: \(player.error?.localizedDescription ?? "Unknown error")")
                 case .unknown:
