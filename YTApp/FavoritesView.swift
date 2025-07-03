@@ -113,7 +113,6 @@ struct FavoriteVideoRowView: View {
         .onTapGesture {
             onVideoTap()
         }
-        }
     }
     
     private func formatTimestamp(_ date: Date) -> String {
