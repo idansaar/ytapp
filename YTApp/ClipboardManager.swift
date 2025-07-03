@@ -35,37 +35,31 @@ class ClipboardManager: ObservableObject {
             return
         }
         
-        do {
-            let currentChangeCount = pasteboard.changeCount
+        let currentChangeCount = pasteboard.changeCount
+        
+        // Only check if clipboard content has changed
+        if currentChangeCount != lastChangeCount {
+            lastChangeCount = currentChangeCount
             
-            // Only check if clipboard content has changed
-            if currentChangeCount != lastChangeCount {
-                lastChangeCount = currentChangeCount
-                
-                // Safely get clipboard string
-                guard let clipboardString = pasteboard.string else {
-                    DispatchQueue.main.async {
-                        self.url = nil
-                    }
-                    return
-                }
-                
-                // Avoid processing the same URL repeatedly
-                if clipboardString == lastKnownURL {
-                    return
-                }
-                
-                let extractedURL = extractYouTubeURL(from: clipboardString)
-                lastKnownURL = clipboardString
-                
+            // Safely get clipboard string
+            guard let clipboardString = pasteboard.string else {
                 DispatchQueue.main.async {
-                    self.url = extractedURL
+                    self.url = nil
                 }
+                return
             }
-        } catch {
-            // Handle pasteboard access errors silently
-            print("📋 Clipboard access temporarily unavailable: \(error.localizedDescription)")
-            // Don't update URL on error to maintain current state
+            
+            // Avoid processing the same URL repeatedly
+            if clipboardString == lastKnownURL {
+                return
+            }
+            
+            let extractedURL = extractYouTubeURL(from: clipboardString)
+            lastKnownURL = clipboardString
+            
+            DispatchQueue.main.async {
+                self.url = extractedURL
+            }
         }
     }
 

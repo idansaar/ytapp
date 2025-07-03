@@ -169,93 +169,90 @@ class ChannelsManager: ObservableObject {
         return channelVideos[channelID] ?? []
     }
     
-    // MARK: - Data Fetching (Placeholder Implementation)
+    // MARK: - Data Fetching (Real YouTube API Integration)
     
     func fetchChannelVideos(for channel: Channel) {
-        print("🔄 Fetching videos for channel: \(channel.name)")
+        print("🔄 Fetching real videos for channel: \(channel.name)")
         isLoading = true
         errorMessage = nil
         
-        // TODO: Implement actual YouTube API integration
-        // For now, create mock data for demonstration
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            self.createMockVideos(for: channel)
-            self.isLoading = false
+        Task {
+            do {
+                let videos = try await YouTubeAPIService.shared.getChannelVideos(
+                    channelId: channel.id,
+                    lookbackDays: channel.lookbackDays,
+                    maxResults: 50
+                )
+                
+                await MainActor.run {
+                    self.channelVideos[channel.id] = videos
+                    self.saveChannelVideos()
+                    self.isLoading = false
+                    print("✅ Fetched \(videos.count) real videos for channel: \(channel.name)")
+                }
+            } catch {
+                await MainActor.run {
+                    self.errorMessage = "Failed to fetch videos for \(channel.name): \(error.localizedDescription)"
+                    self.isLoading = false
+                    print("❌ Error fetching videos for \(channel.name): \(error)")
+                }
+            }
         }
     }
     
     func refreshAllChannels() {
-        print("🔄 Refreshing all active channels")
+        print("🔄 Refreshing all active channels with real YouTube data")
         isLoading = true
         errorMessage = nil
         
         let activeChannels = channels.filter { $0.isActive }
         
-        // Clear existing mock data and regenerate with real video IDs
-        for channel in activeChannels {
-            channelVideos.removeValue(forKey: channel.id)
-            fetchChannelVideos(for: channel)
-        }
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.isLoading = false
+        Task {
+            for channel in activeChannels {
+                do {
+                    let videos = try await YouTubeAPIService.shared.getChannelVideos(
+                        channelId: channel.id,
+                        lookbackDays: channel.lookbackDays,
+                        maxResults: 50
+                    )
+                    
+                    await MainActor.run {
+                        self.channelVideos[channel.id] = videos
+                        print("✅ Refreshed \(videos.count) videos for \(channel.name)")
+                    }
+                } catch {
+                    await MainActor.run {
+                        print("❌ Error refreshing \(channel.name): \(error)")
+                    }
+                }
+            }
+            
+            await MainActor.run {
+                self.saveChannelVideos()
+                self.isLoading = false
+                print("✅ Finished refreshing all channels")
+            }
         }
     }
     
-    // MARK: - Mock Data (Temporary)
+    // MARK: - Channel Search and Addition
     
-    private func createMockVideos(for channel: Channel) {
-        // Use real YouTube video IDs for working playback
-        let realVideoIDs = [
-            "dQw4w9WgXcQ", // Rick Astley - Never Gonna Give You Up
-            "9bZkp7q19f0", // PSY - GANGNAM STYLE
-            "kJQP7kiw5Fk", // Luis Fonsi - Despacito ft. Daddy Yankee
-            "fJ9rUzIMcZQ", // Queen - Bohemian Rhapsody
-            "hTWKbfoikeg", // Nirvana - Smells Like Teen Spirit
-            "YQHsXMglC9A", // Adele - Hello
-            "CevxZvSJLk8", // Katy Perry - Roar
-            "JGwWNGJdvx8", // Ed Sheeran - Shape of You
-            "RgKAFK5djSk", // Wiz Khalifa - See You Again ft. Charlie Puth
-            "OPf0YbXqDm0"  // Mark Ronson - Uptown Funk ft. Bruno Mars
-        ]
+    func searchChannels(query: String) async throws -> [Channel] {
+        print("🔍 Searching for channels: \(query)")
         
-        // Randomly select 3 video IDs for this channel
-        let shuffledIDs = realVideoIDs.shuffled()
-        let selectedIDs = Array(shuffledIDs.prefix(3))
+        // First try to parse as URL
+        if query.contains("youtube.com") || query.contains("youtu.be") {
+            do {
+                let channel = try await YouTubeAPIService.shared.getChannelFromURL(query)
+                return [channel]
+            } catch {
+                print("⚠️ URL parsing failed, trying search: \(error)")
+                // Fall back to search
+            }
+        }
         
-        let mockVideos = [
-            ChannelVideo(
-                id: selectedIDs[0],
-                title: "Latest Video from \(channel.name)",
-                channelID: channel.id,
-                channelName: channel.name,
-                publishedAt: Calendar.current.date(byAdding: .day, value: -1, to: Date()) ?? Date(),
-                duration: "10:30",
-                viewCount: "1.2K views"
-            ),
-            ChannelVideo(
-                id: selectedIDs[1],
-                title: "Previous Video from \(channel.name)",
-                channelID: channel.id,
-                channelName: channel.name,
-                publishedAt: Calendar.current.date(byAdding: .day, value: -3, to: Date()) ?? Date(),
-                duration: "15:45",
-                viewCount: "5.8K views"
-            ),
-            ChannelVideo(
-                id: selectedIDs[2],
-                title: "Older Video from \(channel.name)",
-                channelID: channel.id,
-                channelName: channel.name,
-                publishedAt: Calendar.current.date(byAdding: .day, value: -5, to: Date()) ?? Date(),
-                duration: "8:20",
-                viewCount: "3.1K views"
-            )
-        ]
-        
-        channelVideos[channel.id] = mockVideos
-        saveChannelVideos()
-        print("✅ Mock videos created for channel: \(channel.name) with real YouTube IDs")
+        // Search by name
+        return try await YouTubeAPIService.shared.searchChannelByName(query)
     }
     
     // MARK: - Persistence

@@ -457,7 +457,7 @@ struct AddChannelView: View {
                         Text("Channel URL or Name")
                             .font(.headline)
                         
-                        TextField("https://youtube.com/@channelname or Channel Name", text: $channelInput)
+                        TextField("", text: $channelInput)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
@@ -533,19 +533,26 @@ struct AddChannelView: View {
         isLoading = true
         errorMessage = ""
         
-        // TODO: Implement actual channel parsing and API integration
-        // For now, create a mock channel
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            let mockChannel = Channel(
-                id: "UC\(UUID().uuidString.prefix(10))",
-                name: input.hasPrefix("http") ? "Channel from URL" : input,
-                handle: "@\(input.lowercased().replacingOccurrences(of: " ", with: ""))",
-                description: "A YouTube channel added via \(input.hasPrefix("http") ? "URL" : "search")"
-            )
-            
-            channelsManager.addChannel(mockChannel)
-            isLoading = false
-            presentationMode.wrappedValue.dismiss()
+        Task {
+            do {
+                let foundChannels = try await channelsManager.searchChannels(query: input)
+                
+                await MainActor.run {
+                    if let channel = foundChannels.first {
+                        channelsManager.addChannel(channel)
+                        isLoading = false
+                        presentationMode.wrappedValue.dismiss()
+                    } else {
+                        errorMessage = "No channels found for '\(input)'"
+                        isLoading = false
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Error searching for channel: \(error.localizedDescription)"
+                    isLoading = false
+                }
+            }
         }
     }
 }
