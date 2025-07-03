@@ -50,7 +50,7 @@ struct HistoryView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     
-                    // Video list with swipe actions
+                    // Video list with native swipe actions
                     Section("Recent Videos") {
                         ForEach(historyManager.history) { video in
                             VideoRowView(
@@ -58,18 +58,6 @@ struct HistoryView: View {
                                 isFavorite: favoritesManager.isFavorite(videoID: video.id),
                                 onVideoTap: {
                                     onVideoSelected(video.id)
-                                },
-                                onFavoriteToggle: {
-                                    if favoritesManager.isFavorite(videoID: video.id) {
-                                        favoritesManager.removeFavorite(videoID: video.id)
-                                    } else {
-                                        favoritesManager.addFavorite(videoID: video.id)
-                                    }
-                                },
-                                onDelete: {
-                                    if let index = historyManager.history.firstIndex(where: { $0.id == video.id }) {
-                                        historyManager.deleteVideo(at: IndexSet(integer: index))
-                                    }
                                 }
                             )
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -129,8 +117,6 @@ struct VideoRowView: View {
     let video: Video
     let isFavorite: Bool
     let onVideoTap: () -> Void
-    let onFavoriteToggle: () -> Void
-    let onDelete: () -> Void
     
     var body: some View {
         HStack(spacing: 12) {
@@ -160,31 +146,17 @@ struct VideoRowView: View {
             
             Spacer()
             
-            // Favorite button
-            Button(action: onFavoriteToggle) {
-                Image(systemName: isFavorite ? "star.fill" : "star")
-                    .foregroundColor(isFavorite ? .yellow : .gray)
+            // Favorite indicator (read-only)
+            if isFavorite {
+                Image(systemName: "star.fill")
+                    .foregroundColor(.yellow)
                     .font(.title3)
             }
-            .buttonStyle(PlainButtonStyle())
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .onTapGesture {
             onVideoTap()
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-            
-            Button(action: onFavoriteToggle) {
-                Label(
-                    isFavorite ? "Unfavorite" : "Favorite",
-                    systemImage: isFavorite ? "star.slash" : "star.fill"
-                )
-            }
-            .tint(.yellow)
         }
     }
     

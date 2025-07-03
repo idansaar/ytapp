@@ -35,9 +35,6 @@ struct FavoritesView: View {
                                 video: video,
                                 onVideoTap: {
                                     onVideoSelected(video.id)
-                                },
-                                onRemove: {
-                                    favoritesManager.removeFavorite(videoID: video.id)
                                 }
                             )
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -78,7 +75,6 @@ struct FavoritesView: View {
 struct FavoriteVideoRowView: View {
     let video: Video
     let onVideoTap: () -> Void
-    let onRemove: () -> Void
     
     var body: some View {
         HStack(spacing: 12) {
@@ -117,10 +113,6 @@ struct FavoriteVideoRowView: View {
         .onTapGesture {
             onVideoTap()
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive, action: onRemove) {
-                Label("Remove", systemImage: "star.slash")
-            }
         }
     }
     
