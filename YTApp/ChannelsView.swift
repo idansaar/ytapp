@@ -6,6 +6,8 @@ struct ChannelsView: View {
     @State private var showingAddChannel = false
     @State private var selectedChannel: Channel?
     @State private var showingChannelDetail = false
+    @State private var selectedChannelFilter: String? = nil // nil means show all
+    @State private var showingChannelFilter = false
     
     init(channelsManager: ChannelsManager? = nil, onVideoPlay: ((String) -> Void)? = nil) {
         if let manager = channelsManager {
@@ -16,22 +18,76 @@ struct ChannelsView: View {
         self.onVideoPlay = onVideoPlay
     }
     
+    // Computed property to get all videos from all channels
+    private var allVideos: [ChannelVideo] {
+        var videos: [ChannelVideo] = []
+        for (_, channelVideos) in channelsManager.channelVideos {
+            videos.append(contentsOf: channelVideos)
+        }
+        return videos.sorted { $0.publishedAt > $1.publishedAt }
+    }
+    
+    // Filtered videos based on selected channel
+    private var filteredVideos: [ChannelVideo] {
+        if let selectedChannelFilter = selectedChannelFilter {
+            return allVideos.filter { $0.channelID == selectedChannelFilter }
+        }
+        return allVideos
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 if channelsManager.channels.isEmpty {
                     // Empty state
                     emptyStateView
+                } else if allVideos.isEmpty {
+                    // No videos state
+                    noVideosStateView
                 } else {
-                    // Channels list
-                    channelsListView
+                    // Videos list with filter
+                    videosListView
                 }
             }
             .navigationTitle("Channels")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    // Channel filter button
+                    if !channelsManager.channels.isEmpty {
+                        Button(action: {
+                            showingChannelFilter = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                if let selectedChannelFilter = selectedChannelFilter,
+                                   let channel = channelsManager.getChannelByID(selectedChannelFilter) {
+                                    Text(channel.name)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                } else {
+                                    Text("All")
+                                        .font(.caption)
+                                }
+                            }
+                            .foregroundColor(.blue)
+                        }
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 16) {
+                        // Manage channels button
+                        if !channelsManager.channels.isEmpty {
+                            Button(action: {
+                                showingChannelDetail = true
+                                selectedChannel = nil // Show channel management
+                            }) {
+                                Image(systemName: "gear")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        
                         // Refresh button
                         Button(action: {
                             channelsManager.refreshAllChannels()
@@ -57,7 +113,12 @@ struct ChannelsView: View {
             .sheet(isPresented: $showingChannelDetail) {
                 if let channel = selectedChannel {
                     ChannelDetailView(channel: channel, channelsManager: channelsManager, onVideoPlay: onVideoPlay)
+                } else {
+                    ChannelManagementView(channelsManager: channelsManager)
                 }
+            }
+            .actionSheet(isPresented: $showingChannelFilter) {
+                channelFilterActionSheet
             }
             .alert("Error", isPresented: .constant(channelsManager.errorMessage != nil)) {
                 Button("OK") {
@@ -115,32 +176,98 @@ struct ChannelsView: View {
         .padding()
     }
     
-    // MARK: - Channels List View
+    // MARK: - No Videos State View
     
-    private var channelsListView: some View {
-        VStack(spacing: 0) {
-            // Summary header
-            if !channelsManager.channels.isEmpty {
-                summaryHeaderView
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
-                    .background(Color(.systemGray6))
+    private var noVideosStateView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            
+            Image(systemName: "video.slash")
+                .font(.system(size: 80))
+                .foregroundColor(.gray.opacity(0.6))
+            
+            VStack(spacing: 8) {
+                Text("No Recent Videos")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.primary)
+                
+                Text("Your subscribed channels haven't posted any videos recently")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
             }
             
-            // Channels list
+            Button(action: {
+                channelsManager.refreshAllChannels()
+            }) {
+                HStack(spacing: 8) {
+                    if channelsManager.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    Text(channelsManager.isLoading ? "Refreshing..." : "Refresh Channels")
+                }
+                .font(.headline)
+                .foregroundColor(.blue)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.blue, lineWidth: 1)
+                )
+            }
+            .disabled(channelsManager.isLoading)
+            
+            Spacer()
+        }
+        .padding()
+    }
+    
+    // MARK: - Videos List View
+    
+    private var videosListView: some View {
+        VStack(spacing: 0) {
+            // Summary header
+            summaryHeaderView
+                .padding(.horizontal)
+                .padding(.vertical, 12)
+                .background(Color(.systemGray6))
+            
+            // Videos list
             List {
-                ForEach(channelsManager.channels) { channel in
-                    ChannelRowView(
-                        channel: channel,
-                        channelsManager: channelsManager,
-                        onTap: {
-                            selectedChannel = channel
-                            showingChannelDetail = true
-                        }
+                ForEach(filteredVideos) { video in
+                    ChannelVideoRowView(
+                        video: video,
+                        showChannelName: selectedChannelFilter == nil, // Show channel name when showing all videos
+                        onPlay: {
+                            // Mark as watched and play video
+                            channelsManager.markVideoAsWatched(videoID: video.id)
+                            
+                            // Use the main video player callback
+                            if let onVideoPlay = onVideoPlay {
+                                onVideoPlay(video.id)
+                            } else {
+                                print("🎬 Playing video: \(video.title)")
+                            }
+                        },
+                        onToggleWatched: {
+                            // Toggle watch status
+                            channelsManager.markVideoAsWatched(videoID: video.id)
+                        },
+                        onChannelTap: selectedChannelFilter == nil ? { channelID in
+                            // Show channel detail when tapping channel name
+                            if let channel = channelsManager.getChannelByID(channelID) {
+                                selectedChannel = channel
+                                showingChannelDetail = true
+                            }
+                        } : nil
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }
-                .onDelete(perform: channelsManager.removeChannel)
             }
             .listStyle(PlainListStyle())
             .refreshable {
@@ -149,19 +276,62 @@ struct ChannelsView: View {
         }
     }
     
+    // MARK: - Channel Filter Action Sheet
+    
+    private var channelFilterActionSheet: ActionSheet {
+        var buttons: [ActionSheet.Button] = []
+        
+        // "All Channels" option
+        buttons.append(.default(Text("All Channels")) {
+            selectedChannelFilter = nil
+        })
+        
+        // Individual channel options
+        for channel in channelsManager.channels {
+            let unwatchedCount = channelsManager.getUnwatchedVideosCount(for: channel.id)
+            let title = unwatchedCount > 0 ? "\(channel.name) (\(unwatchedCount) new)" : channel.name
+            
+            buttons.append(.default(Text(title)) {
+                selectedChannelFilter = channel.id
+            })
+        }
+        
+        buttons.append(.cancel())
+        
+        return ActionSheet(
+            title: Text("Filter by Channel"),
+            message: Text("Choose which channel's videos to display"),
+            buttons: buttons
+        )
+    }
+    
     // MARK: - Summary Header
     
     private var summaryHeaderView: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("\(channelsManager.channels.count) Channels")
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                let unwatchedCount = channelsManager.getTotalUnwatchedCount()
-                Text("\(unwatchedCount) unwatched videos")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if let selectedChannelFilter = selectedChannelFilter,
+                   let channel = channelsManager.getChannelByID(selectedChannelFilter) {
+                    Text(channel.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    let channelVideos = filteredVideos.count
+                    let unwatchedCount = filteredVideos.filter { !$0.isWatched }.count
+                    Text("\(channelVideos) videos • \(unwatchedCount) unwatched")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("\(channelsManager.channels.count) Channels")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    let totalVideos = allVideos.count
+                    let unwatchedCount = channelsManager.getTotalUnwatchedCount()
+                    Text("\(totalVideos) videos • \(unwatchedCount) unwatched")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             
             Spacer()

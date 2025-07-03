@@ -186,6 +186,7 @@ struct ChannelDetailView: View {
             ForEach(videos) { video in
                 ChannelVideoRowView(
                     video: video,
+                    showChannelName: false, // Don't show channel name in detail view
                     onPlay: {
                         // Mark as watched and play video
                         channelsManager.markVideoAsWatched(videoID: video.id)
@@ -236,8 +237,18 @@ struct ChannelDetailView: View {
 
 struct ChannelVideoRowView: View {
     let video: ChannelVideo
+    let showChannelName: Bool
     let onPlay: () -> Void
     let onToggleWatched: () -> Void
+    let onChannelTap: ((String) -> Void)?
+    
+    init(video: ChannelVideo, showChannelName: Bool = false, onPlay: @escaping () -> Void, onToggleWatched: @escaping () -> Void, onChannelTap: ((String) -> Void)? = nil) {
+        self.video = video
+        self.showChannelName = showChannelName
+        self.onPlay = onPlay
+        self.onToggleWatched = onToggleWatched
+        self.onChannelTap = onChannelTap
+    }
     
     var body: some View {
         HStack(spacing: 12) {
@@ -276,6 +287,19 @@ struct ChannelVideoRowView: View {
                     .foregroundColor(video.isWatched ? .secondary : .primary)
                     .lineLimit(2)
                     .strikethrough(video.isWatched)
+                
+                // Channel name (if showing)
+                if showChannelName {
+                    Button(action: {
+                        onChannelTap?(video.channelID)
+                    }) {
+                        Text(video.channelName)
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                            .lineLimit(1)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
                 
                 HStack {
                     if let viewCount = video.viewCount {
