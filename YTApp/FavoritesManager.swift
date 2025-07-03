@@ -14,14 +14,29 @@ class FavoritesManager: ObservableObject {
             saveFavorites()
         }
     }
+    
+    func addFavorite(videoID: String) {
+        // Create a basic Video object for the favorite
+        let video = Video(id: videoID, title: "YouTube Video", timestamp: Date())
+        addFavorite(video)
+    }
 
     func removeFavorite(at offsets: IndexSet) {
         favorites.remove(atOffsets: offsets)
         saveFavorites()
     }
+    
+    func removeFavorite(videoID: String) {
+        favorites.removeAll { $0.id == videoID }
+        saveFavorites()
+    }
 
     func isFavorite(_ video: Video) -> Bool {
         favorites.contains(where: { $0.id == video.id })
+    }
+    
+    func isFavorite(videoID: String) -> Bool {
+        favorites.contains(where: { $0.id == videoID })
     }
 
     private func saveFavorites() {

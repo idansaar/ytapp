@@ -2,74 +2,112 @@ import SwiftUI
 
 struct FavoritesView: View {
     @ObservedObject var favoritesManager: FavoritesManager
-    var onSelectVideo: (String) -> Void
-
+    let onVideoSelected: (String) -> Void
+    
     var body: some View {
         NavigationView {
             List {
                 if favoritesManager.favorites.isEmpty {
-                    VStack {
+                    VStack(spacing: 16) {
                         Image(systemName: "star")
                             .font(.system(size: 50))
                             .foregroundColor(.gray)
-                        Text("No favorite videos")
-                            .font(.headline)
-                            .foregroundColor(.gray)
-                        Text("Swipe left on videos in History to add favorites")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                        
+                        Text("No Favorites Yet")
+                            .font(.title2)
+                            .fontWeight(.medium)
+                        
+                        Text("Tap the star icon on videos to add them to your favorites")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 50)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 } else {
-                    // Random button section
-                    Section {
-                        Button(action: {
-                            if let randomVideo = favoritesManager.favorites.randomElement() {
-                                onSelectVideo(randomVideo.id)
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "shuffle")
-                                    .foregroundColor(.white)
-                                Text("Play Random Favorite")
-                                    .foregroundColor(.white)
-                                    .font(.headline)
-                                Spacer()
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.purple)
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Color.clear)
-                    }
-                    
-                    // Favorite videos section
                     Section("Favorite Videos") {
                         ForEach(favoritesManager.favorites) { video in
-                            VideoRowView(video: video, isFavorite: true) {
-                                onSelectVideo(video.id)
-                            }
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) {
-                                    if let index = favoritesManager.favorites.firstIndex(where: { $0.id == video.id }) {
-                                        favoritesManager.removeFavorite(at: IndexSet(integer: index))
-                                    }
-                                } label: {
-                                    Label("Remove", systemImage: "star.slash")
+                            FavoriteVideoRowView(
+                                video: video,
+                                onVideoTap: {
+                                    onVideoSelected(video.id)
+                                },
+                                onRemove: {
+                                    favoritesManager.removeFavorite(videoID: video.id)
                                 }
-                            }
+                            )
                         }
                     }
                 }
             }
             .navigationTitle("Favorites")
-            .navigationBarTitleDisplayMode(.inline)
+            .listStyle(PlainListStyle())
         }
     }
+}
+
+struct FavoriteVideoRowView: View {
+    let video: Video
+    let onVideoTap: () -> Void
+    let onRemove: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Thumbnail
+            AsyncThumbnailImage(videoID: video.id, quality: .medium)
+                .frame(width: 120, height: 68)
+                .cornerRadius(8)
+                .clipped()
+            
+            // Video info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(video.title)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+                
+                Text(formatTimestamp(video.timestamp))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text("ID: \(video.id)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .opacity(0.7)
+            }
+            
+            Spacer()
+            
+            // Favorite indicator
+            Image(systemName: "star.fill")
+                .foregroundColor(.yellow)
+                .font(.title3)
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onVideoTap()
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive, action: onRemove) {
+                Label("Remove", systemImage: "star.slash")
+            }
+        }
+    }
+    
+    private func formatTimestamp(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+#Preview {
+    FavoritesView(
+        favoritesManager: FavoritesManager(),
+        onVideoSelected: { _ in }
+    )
 }

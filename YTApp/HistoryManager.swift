@@ -1,9 +1,13 @@
 import Foundation
 
-struct Video: Codable, Identifiable, Equatable {
+struct Video: Codable, Identifiable, Equatable, Hashable {
     var id: String
     var title: String
     var timestamp: Date
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 class HistoryManager: ObservableObject {

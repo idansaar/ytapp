@@ -8,45 +8,94 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
+    @State private var useAVPlayer = false // Toggle between WebKit and AVKit players
+    @State private var showPlayerSettings = false
 
     var body: some View {
         VStack(spacing: 0) {
             // Top section with video player and paste button
             VStack(spacing: 16) {
-                // Paste & Play button at the top
-                Button(action: {
-                    playFromClipboard()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: clipboardManager.url != nil ? "doc.on.clipboard.fill" : "doc.on.clipboard")
-                        Text("Paste & Play")
+                // Player controls and settings
+                HStack {
+                    // Paste & Play button
+                    Button(action: {
+                        playFromClipboard()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: clipboardManager.url != nil ? "doc.on.clipboard.fill" : "doc.on.clipboard")
+                            Text("Paste & Play")
+                        }
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(clipboardManager.url != nil ? Color.blue : Color.gray)
+                        )
                     }
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 20)
-                    .frame(maxWidth: .infinity)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(clipboardManager.url != nil ? Color.blue : Color.gray)
-                    )
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    Spacer()
+                    
+                    // Player type toggle
+                    Button(action: {
+                        showPlayerSettings.toggle()
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundColor(.blue)
+                            .font(.title2)
+                    }
                 }
-                .buttonStyle(PlainButtonStyle())
                 .padding(.horizontal)
                 
                 // Video player window
                 if let videoID = currentVideoID {
-                    VideoPlayerView(videoID: videoID) {
-                        // Add to history when playback actually starts (only once per video)
-                        if !hasAddedToHistory {
-                            print("🎯 Adding video to history on playback start: \(videoID)")
-                            historyManager.addVideo(id: videoID)
-                            hasAddedToHistory = true
+                    Group {
+                        if useAVPlayer {
+                            // AVKit player with PiP support
+                            AVVideoPlayerView(videoID: videoID) {
+                                // Add to history when playback actually starts (only once per video)
+                                if !hasAddedToHistory {
+                                    print("🎯 Adding video to history on AVPlayer playback start: \(videoID)")
+                                    historyManager.addVideo(id: videoID)
+                                    hasAddedToHistory = true
+                                }
+                            }
+                            .aspectRatio(16/9, contentMode: .fit)
+                            .frame(maxHeight: 220)
+                            .cornerRadius(12)
+                            .overlay(
+                                // PiP indicator
+                                VStack {
+                                    HStack {
+                                        Spacer()
+                                        Text("PiP")
+                                            .font(.caption2)
+                                            .padding(4)
+                                            .background(Color.blue)
+                                            .foregroundColor(.white)
+                                            .cornerRadius(4)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(8)
+                            )
+                        } else {
+                            // WebKit player (original)
+                            VideoPlayerView(videoID: videoID) {
+                                // Add to history when playback actually starts (only once per video)
+                                if !hasAddedToHistory {
+                                    print("🎯 Adding video to history on WebKit playback start: \(videoID)")
+                                    historyManager.addVideo(id: videoID)
+                                    hasAddedToHistory = true
+                                }
+                            }
+                            .aspectRatio(16/9, contentMode: .fit)
+                            .frame(maxHeight: 220)
+                            .cornerRadius(12)
                         }
                     }
-                    .aspectRatio(16/9, contentMode: .fit)
-                    .frame(maxHeight: 220)
-                    .cornerRadius(12)
                     .padding(.horizontal)
                     .id(videoID) // Use ID to prevent unnecessary updates
                 } else {
@@ -112,6 +161,13 @@ struct ContentView: View {
                     setCurrentVideo(videoID)
                 }
             }
+        }
+        .onAppear {
+            // Configure background playback on app launch
+            AVVideoPlayerView.configureBackgroundPlayback()
+        }
+        .sheet(isPresented: $showPlayerSettings) {
+            PlayerSettingsView(useAVPlayer: $useAVPlayer)
         }
     }
     
