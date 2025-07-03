@@ -132,7 +132,7 @@ struct ContentView: View {
                     Text("History") 
                 }.tag(0)
                 
-                ChannelsView(channelsManager: channelsManager) { videoID in
+                ChannelsView(channelsManager: channelsManager, favoritesManager: favoritesManager) { videoID in
                     print("📺 Playing video from channels: \(videoID)")
                     setCurrentVideo(videoID)
                     // Mark video as watched in channels

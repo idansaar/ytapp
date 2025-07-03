@@ -3,8 +3,14 @@ import SwiftUI
 struct ChannelManagementView: View {
     @Environment(\.presentationMode) var presentationMode
     @ObservedObject var channelsManager: ChannelsManager
+    @ObservedObject var favoritesManager: FavoritesManager
     @State private var selectedChannel: Channel?
     @State private var showingChannelDetail = false
+    
+    init(channelsManager: ChannelsManager, favoritesManager: FavoritesManager) {
+        self.channelsManager = channelsManager
+        self.favoritesManager = favoritesManager
+    }
     
     var body: some View {
         NavigationView {
@@ -36,7 +42,7 @@ struct ChannelManagementView: View {
             }
             .sheet(isPresented: $showingChannelDetail) {
                 if let channel = selectedChannel {
-                    ChannelDetailView(channel: channel, channelsManager: channelsManager)
+                    ChannelDetailView(channel: channel, channelsManager: channelsManager, favoritesManager: favoritesManager)
                 }
             }
         }
@@ -136,6 +142,6 @@ struct ChannelManagementView: View {
 
 struct ChannelManagementView_Previews: PreviewProvider {
     static var previews: some View {
-        ChannelManagementView(channelsManager: ChannelsManager())
+        ChannelManagementView(channelsManager: ChannelsManager(), favoritesManager: FavoritesManager())
     }
 }

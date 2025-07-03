@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChannelsView: View {
     @ObservedObject var channelsManager: ChannelsManager
+    @ObservedObject var favoritesManager: FavoritesManager
     let onVideoPlay: ((String) -> Void)?
     @State private var showingAddChannel = false
     @State private var selectedChannel: Channel?
@@ -9,12 +10,19 @@ struct ChannelsView: View {
     @State private var selectedChannelFilter: String? = nil // nil means show all
     @State private var showingChannelFilter = false
     
-    init(channelsManager: ChannelsManager? = nil, onVideoPlay: ((String) -> Void)? = nil) {
+    init(channelsManager: ChannelsManager? = nil, favoritesManager: FavoritesManager? = nil, onVideoPlay: ((String) -> Void)? = nil) {
         if let manager = channelsManager {
             self.channelsManager = manager
         } else {
             self.channelsManager = ChannelsManager()
         }
+        
+        if let favManager = favoritesManager {
+            self.favoritesManager = favManager
+        } else {
+            self.favoritesManager = FavoritesManager()
+        }
+        
         self.onVideoPlay = onVideoPlay
     }
     
@@ -112,9 +120,9 @@ struct ChannelsView: View {
             }
             .sheet(isPresented: $showingChannelDetail) {
                 if let channel = selectedChannel {
-                    ChannelDetailView(channel: channel, channelsManager: channelsManager, onVideoPlay: onVideoPlay)
+                    ChannelDetailView(channel: channel, channelsManager: channelsManager, favoritesManager: favoritesManager, onVideoPlay: onVideoPlay)
                 } else {
-                    ChannelManagementView(channelsManager: channelsManager)
+                    ChannelManagementView(channelsManager: channelsManager, favoritesManager: favoritesManager)
                 }
             }
             .actionSheet(isPresented: $showingChannelFilter) {
@@ -264,7 +272,8 @@ struct ChannelsView: View {
                                 selectedChannel = channel
                                 showingChannelDetail = true
                             }
-                        } : nil
+                        } : nil,
+                        favoritesManager: favoritesManager
                     )
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 }

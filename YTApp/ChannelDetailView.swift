@@ -4,15 +4,17 @@ struct ChannelDetailView: View {
     @Environment(\.presentationMode) var presentationMode
     let channel: Channel
     let channelsManager: ChannelsManager
+    let favoritesManager: FavoritesManager
     let onVideoPlay: ((String) -> Void)?
     
     @State private var videos: [ChannelVideo] = []
     @State private var showingSettings = false
     @State private var isRefreshing = false
     
-    init(channel: Channel, channelsManager: ChannelsManager, onVideoPlay: ((String) -> Void)? = nil) {
+    init(channel: Channel, channelsManager: ChannelsManager, favoritesManager: FavoritesManager, onVideoPlay: ((String) -> Void)? = nil) {
         self.channel = channel
         self.channelsManager = channelsManager
+        self.favoritesManager = favoritesManager
         self.onVideoPlay = onVideoPlay
     }
     
@@ -205,7 +207,8 @@ struct ChannelDetailView: View {
                         // Toggle watch status
                         channelsManager.markVideoAsWatched(videoID: video.id)
                         loadVideos() // Refresh to show updated status
-                    }
+                    },
+                    favoritesManager: favoritesManager
                 )
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
@@ -241,13 +244,15 @@ struct ChannelVideoRowView: View {
     let onPlay: () -> Void
     let onToggleWatched: () -> Void
     let onChannelTap: ((String) -> Void)?
+    let favoritesManager: FavoritesManager?
     
-    init(video: ChannelVideo, showChannelName: Bool = false, onPlay: @escaping () -> Void, onToggleWatched: @escaping () -> Void, onChannelTap: ((String) -> Void)? = nil) {
+    init(video: ChannelVideo, showChannelName: Bool = false, onPlay: @escaping () -> Void, onToggleWatched: @escaping () -> Void, onChannelTap: ((String) -> Void)? = nil, favoritesManager: FavoritesManager? = nil) {
         self.video = video
         self.showChannelName = showChannelName
         self.onPlay = onPlay
         self.onToggleWatched = onToggleWatched
         self.onChannelTap = onChannelTap
+        self.favoritesManager = favoritesManager
     }
     
     var body: some View {
@@ -282,11 +287,22 @@ struct ChannelVideoRowView: View {
             
             // Video info
             VStack(alignment: .leading, spacing: 4) {
-                Text(video.title)
-                    .font(.headline)
-                    .foregroundColor(video.isWatched ? .secondary : .primary)
-                    .lineLimit(2)
-                    .strikethrough(video.isWatched)
+                HStack {
+                    Text(video.title)
+                        .font(.headline)
+                        .foregroundColor(video.isWatched ? .secondary : .primary)
+                        .lineLimit(2)
+                        .strikethrough(video.isWatched)
+                    
+                    Spacer()
+                    
+                    // Favorite indicator
+                    if let favoritesManager = favoritesManager, favoritesManager.isFavorite(videoID: video.id) {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                            .font(.caption)
+                    }
+                }
                 
                 // Channel name (if showing)
                 if showChannelName {
@@ -337,6 +353,30 @@ struct ChannelVideoRowView: View {
         }
         .padding(.vertical, 4)
         .opacity(video.isWatched ? 0.7 : 1.0)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            // Favorite/Unfavorite action
+            if let favoritesManager = favoritesManager {
+                Button {
+                    if favoritesManager.isFavorite(videoID: video.id) {
+                        favoritesManager.removeFavorite(videoID: video.id)
+                    } else {
+                        // Convert ChannelVideo to Video for favorites
+                        let favoriteVideo = Video(
+                            id: video.id,
+                            title: video.title,
+                            timestamp: Date() // Use current time for favorites ordering
+                        )
+                        favoritesManager.addFavorite(favoriteVideo)
+                    }
+                } label: {
+                    Label(
+                        favoritesManager.isFavorite(videoID: video.id) ? "Unfavorite" : "Favorite",
+                        systemImage: favoritesManager.isFavorite(videoID: video.id) ? "star.slash" : "star"
+                    )
+                }
+                .tint(favoritesManager.isFavorite(videoID: video.id) ? .orange : .yellow)
+            }
+        }
     }
     
     private func timeAgoString(from date: Date) -> String {
@@ -484,6 +524,6 @@ struct ChannelDetailView_Previews: PreviewProvider {
             description: "A sample YouTube channel for preview"
         )
         
-        ChannelDetailView(channel: mockChannel, channelsManager: ChannelsManager())
+        ChannelDetailView(channel: mockChannel, channelsManager: ChannelsManager(), favoritesManager: FavoritesManager())
     }
 }
