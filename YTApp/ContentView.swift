@@ -14,18 +14,7 @@ struct ContentView: View {
             VStack(spacing: 16) {
                 // Paste & Play button at the top
                 Button(action: {
-                    print("🔘 Button tapped!")
-                    print("📋 ClipboardManager URL: \(clipboardManager.url?.absoluteString ?? "nil")")
-                    
-                    if let url = clipboardManager.url {
-                        print("✅ Using ClipboardManager URL")
-                        currentVideoID = extractVideoID(from: url)
-                    } else {
-                        print("⚠️ ClipboardManager URL is nil, checking clipboard directly")
-                        checkClipboardAndPlay()
-                    }
-                    
-                    print("🎥 Current Video ID: \(currentVideoID ?? "nil")")
+                    playFromClipboard()
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: clipboardManager.url != nil ? "doc.on.clipboard.fill" : "doc.on.clipboard")
@@ -51,7 +40,10 @@ struct ContentView: View {
                         .frame(maxHeight: 220)
                         .cornerRadius(12)
                         .padding(.horizontal)
-                        .onAppear { historyManager.addVideo(id: videoID) }
+                        .onAppear { 
+                            print("🎬 Video player appeared for ID: \(videoID)")
+                            historyManager.addVideo(id: videoID) 
+                        }
                 } else {
                     // Placeholder when no video is selected
                     RoundedRectangle(cornerRadius: 12)
@@ -77,9 +69,10 @@ struct ContentView: View {
             .padding(.bottom, 16)
             .background(Color(.systemBackground))
             
-            // Tab view for History and Favorites
+            // Tab view for History, Channels, and Favorites
             TabView(selection: $selectedTab) {
                 HistoryView(historyManager: historyManager, favoritesManager: favoritesManager) { videoID in
+                    print("🎯 Playing video from history: \(videoID)")
                     currentVideoID = videoID
                 }
                 .tabItem { 
@@ -87,23 +80,52 @@ struct ContentView: View {
                     Text("History") 
                 }.tag(0)
                 
+                ChannelsView()
+                .tabItem { 
+                    Image(systemName: "tv")
+                    Text("Channels") 
+                }.tag(1)
+                
                 FavoritesView(favoritesManager: favoritesManager) { videoID in
+                    print("⭐ Playing video from favorites: \(videoID)")
                     currentVideoID = videoID
                 }
                 .tabItem { 
                     Image(systemName: "star")
                     Text("Favorites") 
-                }.tag(1)
+                }.tag(2)
             }
         }
         .onReceive(clipboardManager.$url) { url in
             if let url = url {
-                currentVideoID = extractVideoID(from: url)
+                let videoID = extractVideoID(from: url)
+                print("📋 New URL detected: \(url.absoluteString)")
+                print("🎥 Extracted video ID: \(videoID ?? "nil")")
+                
+                if let videoID = videoID {
+                    // Auto-play the new video
+                    currentVideoID = videoID
+                }
             }
         }
     }
     
-    private func checkClipboardAndPlay() {
+    private func playFromClipboard() {
+        print("🔘 Paste & Play button tapped!")
+        
+        if let url = clipboardManager.url {
+            print("✅ Using ClipboardManager URL: \(url.absoluteString)")
+            if let videoID = extractVideoID(from: url) {
+                currentVideoID = videoID
+                print("🎬 Playing video: \(videoID)")
+            }
+        } else {
+            print("⚠️ No URL available from ClipboardManager")
+            checkClipboardDirectly()
+        }
+    }
+    
+    private func checkClipboardDirectly() {
         print("🔍 Checking clipboard directly...")
         if let clipboardString = UIPasteboard.general.string {
             print("📝 Clipboard content: \(clipboardString)")

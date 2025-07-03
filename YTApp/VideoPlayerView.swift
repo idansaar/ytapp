@@ -8,6 +8,8 @@ struct VideoPlayerView: UIViewRepresentable {
         let webView = WKWebView()
         webView.scrollView.isScrollEnabled = false
         webView.configuration.userContentController.add(context.coordinator, name: "videoObserver")
+        webView.configuration.allowsInlineMediaPlayback = true
+        webView.configuration.mediaTypesRequiringUserActionForPlayback = []
         return webView
     }
 
@@ -47,7 +49,8 @@ struct VideoPlayerView: UIViewRepresentable {
                             'autoplay': 1,
                             'controls': 1,
                             'rel': 0,
-                            'modestbranding': 1
+                            'modestbranding': 1,
+                            'fs': 1
                         },
                         events: {
                             'onReady': onPlayerReady
@@ -55,8 +58,10 @@ struct VideoPlayerView: UIViewRepresentable {
                     });
                 }
                 function onPlayerReady(event) {
+                    // Auto-play the video when ready
                     event.target.playVideo();
                     event.target.unMute();
+                    
                     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.videoObserver) {
                         window.webkit.messageHandlers.videoObserver.postMessage(player.getVideoData().title);
                     }
@@ -76,7 +81,7 @@ struct VideoPlayerView: UIViewRepresentable {
     class Coordinator: NSObject, WKScriptMessageHandler {
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             if let title = message.body as? String {
-                print("Video Title: \(title)")
+                print("🎬 Video Title: \(title)")
             }
         }
     }
