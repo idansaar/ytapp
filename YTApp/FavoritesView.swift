@@ -29,8 +29,30 @@ struct FavoritesView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                 } else {
+                    // Random favorite button
+                    Section {
+                        Button(action: {
+                            if let randomVideo = favoritesManager.favorites.randomElement() {
+                                onVideoSelected(randomVideo.id)
+                            }
+                        }) {
+                            HStack {
+                                Image(systemName: "shuffle")
+                                    .foregroundColor(.yellow)
+                                Text("Play Random Favorite")
+                                    .foregroundColor(.yellow)
+                                Spacer()
+                                Text("\(favoritesManager.favorites.count) favorites")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    
+                    // Favorite videos list with native swipe actions
                     Section("Favorite Videos") {
-                        ForEach(favoritesManager.favorites) { video in
+                        ForEach(favoritesManager.favorites.sorted { $0.timestamp > $1.timestamp }) { video in
                             FavoriteVideoRowView(
                                 video: video,
                                 onVideoTap: {

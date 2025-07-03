@@ -10,15 +10,33 @@ class FavoritesManager: ObservableObject {
 
     func addFavorite(_ video: Video) {
         if !favorites.contains(where: { $0.id == video.id }) {
-            favorites.insert(video, at: 0)
+            // Create a new video with current timestamp for favorites ordering
+            let favoriteVideo = Video(
+                id: video.id,
+                title: video.title,
+                timestamp: Date() // Use current time for favorites ordering
+            )
+            favorites.insert(favoriteVideo, at: 0)
             saveFavorites()
         }
     }
     
     func addFavorite(videoID: String) {
-        // Create a basic Video object for the favorite
-        let video = Video(id: videoID, title: "YouTube Video", timestamp: Date())
-        addFavorite(video)
+        // Try to find the video in history first to preserve metadata
+        if let historyVideo = getVideoFromHistory(videoID: videoID) {
+            addFavorite(historyVideo)
+        } else {
+            // Create a basic Video object for the favorite
+            let video = Video(id: videoID, title: "YouTube Video", timestamp: Date())
+            addFavorite(video)
+        }
+    }
+    
+    // Helper method to get video from history (if available)
+    private func getVideoFromHistory(videoID: String) -> Video? {
+        // This would ideally get the video from HistoryManager
+        // For now, we'll create a new video with current timestamp
+        return nil
     }
 
     func removeFavorite(at offsets: IndexSet) {

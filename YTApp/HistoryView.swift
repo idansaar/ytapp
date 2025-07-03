@@ -75,7 +75,7 @@ struct HistoryView: View {
                                     if favoritesManager.isFavorite(videoID: video.id) {
                                         favoritesManager.removeFavorite(videoID: video.id)
                                     } else {
-                                        favoritesManager.addFavorite(videoID: video.id)
+                                        favoritesManager.addFavorite(video) // Pass full video object
                                     }
                                 } label: {
                                     Label(
