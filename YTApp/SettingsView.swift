@@ -5,9 +5,11 @@ struct SettingsView: View {
     @ObservedObject var historyManager: HistoryManager
     @ObservedObject var favoritesManager: FavoritesManager
     @ObservedObject var channelsManager: ChannelsManager
+    @ObservedObject var errorManager: ErrorManager
     
     @State private var showingClearDataAlert = false
     @State private var showingAbout = false
+    @State private var showingErrorHistory = false
     @State private var autoPlayFromClipboard = true
     @State private var savePlaybackPosition = true
     @State private var backgroundPlayback = true
@@ -136,6 +138,17 @@ struct SettingsView: View {
                 
                 // MARK: - About
                 Section(header: Text("About")) {
+                    Button("Error History") {
+                        showingErrorHistory = true
+                    }
+                    
+                    HStack {
+                        Text("Recent Errors")
+                        Spacer()
+                        Text("\(errorManager.errorHistory.count)")
+                            .foregroundColor(.secondary)
+                    }
+                    
                     Button("About YTApp") {
                         showingAbout = true
                     }
@@ -174,6 +187,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingAbout) {
                 AboutView()
+            }
+            .sheet(isPresented: $showingErrorHistory) {
+                ErrorHistoryView(errorManager: errorManager)
             }
         }
         .onAppear {
@@ -341,6 +357,7 @@ struct InfoRow: View {
         playbackPositionManager: PlaybackPositionManager(),
         historyManager: HistoryManager(),
         favoritesManager: FavoritesManager(),
-        channelsManager: ChannelsManager()
+        channelsManager: ChannelsManager(),
+        errorManager: ErrorManager()
     )
 }

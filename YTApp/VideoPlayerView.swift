@@ -6,15 +6,17 @@ struct VideoPlayerView: View {
     let videoID: String
     let onPlaybackStarted: (() -> Void)?
     let playbackPositionManager: PlaybackPositionManager?
+    let errorManager: ErrorManager?
     
     @State private var isLoading = true
     @State private var hasError = false
     
-    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil) {
+    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil, errorManager: ErrorManager? = nil) {
         print("🌐 [DEBUG] VideoPlayerView init - videoID: \(videoID)")
         self.videoID = videoID
         self.onPlaybackStarted = onPlaybackStarted
         self.playbackPositionManager = playbackPositionManager
+        self.errorManager = errorManager
     }
     
     var body: some View {
@@ -24,6 +26,7 @@ struct VideoPlayerView: View {
                 videoID: videoID,
                 onPlaybackStarted: onPlaybackStarted,
                 playbackPositionManager: playbackPositionManager,
+                errorManager: errorManager,
                 isLoading: $isLoading,
                 hasError: $hasError
             )
@@ -91,13 +94,15 @@ struct WebKitVideoPlayer: UIViewRepresentable {
     let videoID: String
     let onPlaybackStarted: (() -> Void)?
     let playbackPositionManager: PlaybackPositionManager?
+    let errorManager: ErrorManager?
     @Binding var isLoading: Bool
     @Binding var hasError: Bool
     
-    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil, isLoading: Binding<Bool>, hasError: Binding<Bool>) {
+    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil, errorManager: ErrorManager? = nil, isLoading: Binding<Bool>, hasError: Binding<Bool>) {
         self.videoID = videoID
         self.onPlaybackStarted = onPlaybackStarted
         self.playbackPositionManager = playbackPositionManager
+        self.errorManager = errorManager
         self._isLoading = isLoading
         self._hasError = hasError
     }
@@ -416,6 +421,9 @@ struct WebKitVideoPlayer: UIViewRepresentable {
             case "errorHandler":
                 if let errorMessage = message.body as? String {
                     print("❌ Video Player Error: \(errorMessage)")
+                    
+                    // Report error to ErrorManager
+                    self.parent.errorManager?.reportVideoLoadError(errorMessage, context: "WebKit Player")
                     
                     // Update error state
                     DispatchQueue.main.async {

@@ -7,6 +7,7 @@ struct ContentView: View {
     @StateObject private var favoritesManager = FavoritesManager()
     @StateObject private var channelsManager = ChannelsManager()
     @StateObject private var playbackPositionManager = PlaybackPositionManager()
+    @StateObject private var errorManager = ErrorManager()
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
@@ -62,7 +63,8 @@ struct ContentView: View {
                         onPlaybackStarted: {
                             print("▶️ WebKit playback started for: \(videoID)")
                         },
-                        playbackPositionManager: playbackPositionManager
+                        playbackPositionManager: playbackPositionManager,
+                        errorManager: errorManager
                     )
                     .aspectRatio(16/9, contentMode: .fit)
                     .frame(maxHeight: 220)
@@ -139,9 +141,24 @@ struct ContentView: View {
                 playbackPositionManager: playbackPositionManager,
                 historyManager: historyManager,
                 favoritesManager: favoritesManager,
-                channelsManager: channelsManager
+                channelsManager: channelsManager,
+                errorManager: errorManager
             )
         }
+        .overlay(
+            // Error Toast Overlay
+            VStack {
+                Spacer()
+                if let error = errorManager.currentError {
+                    ErrorToastView(error: error) {
+                        errorManager.clearCurrentError()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 100) // Above tab bar
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: errorManager.currentError != nil)
+        )
         .onReceive(clipboardManager.$url) { url in
             if let url = url {
                 let videoID = extractVideoID(from: url)
@@ -189,6 +206,8 @@ struct ContentView: View {
             if let videoID = extractVideoID(from: url) {
                 setCurrentVideo(videoID)
                 print("🎬 Playing video: \(videoID)")
+            } else {
+                errorManager.reportClipboardError("Invalid YouTube URL format", context: "playFromClipboard")
             }
         } else {
             print("⚠️ No URL available from ClipboardManager")
@@ -202,11 +221,13 @@ struct ContentView: View {
         // Use a safer approach to check clipboard
         guard UIPasteboard.general.hasStrings else {
             print("❌ No string content in clipboard")
+            errorManager.reportClipboardError("No text content found in clipboard", context: "checkClipboardDirectly")
             return
         }
         
         guard let clipboardString = UIPasteboard.general.string else {
             print("❌ Could not access clipboard string")
+            errorManager.reportClipboardError("Unable to access clipboard content", context: "checkClipboardDirectly")
             return
         }
         
