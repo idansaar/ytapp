@@ -10,6 +10,7 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
+    @State private var showingSettings = false
     
     init() {
         print("🚀 [DEBUG] ContentView initialized - WebKit only mode")
@@ -41,6 +42,15 @@ struct ContentView: View {
                     .buttonStyle(PlainButtonStyle())
                     
                     Spacer()
+                    
+                    // Settings button
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .foregroundColor(.blue)
+                            .font(.title2)
+                    }
                 }
                 .padding(.horizontal)
                 
@@ -123,6 +133,14 @@ struct ContentView: View {
                     Text("Favorites") 
                 }.tag(2)
             }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(
+                playbackPositionManager: playbackPositionManager,
+                historyManager: historyManager,
+                favoritesManager: favoritesManager,
+                channelsManager: channelsManager
+            )
         }
         .onReceive(clipboardManager.$url) { url in
             if let url = url {

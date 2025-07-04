@@ -88,6 +88,16 @@ class PlaybackPositionManager: ObservableObject {
         savePositions()
     }
     
+    func clearAllPositions() {
+        print("🗑️ Clearing all playback positions")
+        positions.removeAll()
+        savePositions()
+    }
+    
+    func getAllPositions() -> [String: PlaybackPosition] {
+        return positions
+    }
+    
     func hasPosition(for videoID: String) -> Bool {
         return positions[videoID] != nil
     }
