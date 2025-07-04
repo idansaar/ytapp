@@ -122,12 +122,6 @@ struct ContentView: View {
                     Image(systemName: "star")
                     Text("Favorites") 
                 }.tag(2)
-                
-                DebugView()
-                .tabItem { 
-                    Image(systemName: "wrench.and.screwdriver")
-                    Text("Debug") 
-                }.tag(3)
             }
         }
         .onReceive(clipboardManager.$url) { url in
