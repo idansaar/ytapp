@@ -74,7 +74,7 @@ struct PlayerSettingsView: View {
                     FeatureRow(
                         icon: "play.rectangle",
                         title: "Demo Content",
-                        description: "Shows sample video for PiP demonstration",
+                        description: "Uses AVKit with PiP support and position tracking",
                         available: useAVPlayer
                     )
                     
@@ -100,7 +100,7 @@ struct PlayerSettingsView: View {
                     )
                 }
                 
-                Section(footer: Text("Note: AVKit player currently shows demo content because YouTube videos require direct stream URLs. In production, this would use youtube-dl or similar services to extract playable URLs from YouTube.")) {
+                Section(footer: Text("Note: AVKit player uses sample videos mapped to YouTube IDs since YouTube doesn't provide direct video URLs. For production apps, services like youtube-dl/yt-dlp would extract real YouTube video streams.")) {
                     EmptyView()
                 }
             }

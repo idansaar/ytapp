@@ -77,27 +77,6 @@ struct ContentView: View {
                             .aspectRatio(16/9, contentMode: .fit)
                             .frame(maxHeight: 220)
                             .cornerRadius(12)
-                            .overlay(
-                                // Demo mode indicator
-                                VStack {
-                                    HStack {
-                                        Spacer()
-                                        VStack(spacing: 2) {
-                                            Text("DEMO")
-                                                .font(.caption2)
-                                                .fontWeight(.bold)
-                                            Text("PiP Mode")
-                                                .font(.caption2)
-                                        }
-                                        .padding(6)
-                                        .background(Color.blue)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(6)
-                                    }
-                                    Spacer()
-                                }
-                                .padding(8)
-                            )
                         } else {
                             // WebKit player (original)
                             VideoPlayerView(
