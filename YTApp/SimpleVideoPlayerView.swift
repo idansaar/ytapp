@@ -15,7 +15,7 @@ struct SimpleVideoPlayerView: UIViewControllerRepresentable {
         let controller = AVPlayerViewController()
         
         // Create YouTube URL (this will show YouTube's web player)
-        let youtubeURL = URL(string: "https://www.youtube.com/watch?v=\(videoID)")!
+        _ = URL(string: "https://www.youtube.com/watch?v=\(videoID)")!
         
         // For now, we'll use a placeholder video URL since direct YouTube streaming requires special handling
         // In production, you'd need youtube-dl or similar service to get the actual stream URL
@@ -62,7 +62,7 @@ struct SimpleVideoPlayerView: UIViewControllerRepresentable {
         }
         
         deinit {
-            if let observer = timeObserver {
+            if timeObserver != nil {
                 // Clean up observer
             }
         }

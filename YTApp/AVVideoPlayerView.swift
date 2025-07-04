@@ -166,7 +166,7 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
             // Restore playback position if not starting from beginning
             if !startFromBeginning, let savedPosition = playbackPositionManager.getPosition(for: videoID) {
                 let seekTime = CMTime(seconds: savedPosition.position, preferredTimescale: 1000)
-                player.seek(to: seekTime) { [weak self] completed in
+                player.seek(to: seekTime) { completed in
                     if completed {
                         print("▶️ Resumed playback at \(savedPosition.formattedPosition)")
                     }

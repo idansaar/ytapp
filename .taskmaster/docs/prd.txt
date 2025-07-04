@@ -1,0 +1,182 @@
+# YTApp - iOS YouTube Video Player
+
+## Overview
+YTApp is a streamlined iOS application designed for seamless YouTube video consumption with enhanced user experience features. The app solves the problem of cumbersome YouTube link sharing and video management by providing instant paste-and-play functionality, background playback with Picture-in-Picture (PiP) support, and intelligent video organization through history, channel subscriptions, and favorites management.
+
+The target audience includes iOS users who frequently watch YouTube videos, share links between devices/apps, and want better control over their viewing experience without the overhead of the official YouTube app.
+
+## Core Features
+
+### 1. Paste & Play Functionality
+- **What it does**: Instantly detects YouTube URLs from clipboard and provides one-tap playback
+- **Why it's important**: Eliminates friction when sharing/opening YouTube links from other apps
+- **How it works**: App monitors clipboard for YouTube URLs, displays paste button when detected, initiates playback immediately upon tap
+
+### 2. Background Playback with Picture-in-Picture
+- **What it does**: Continues video playback when app is backgrounded or in PiP mode
+- **Why it's important**: Allows multitasking while consuming video content
+- **How it works**: Integrates with iOS AVPlayerViewController and PiP APIs for seamless background playback
+
+### 3. Smart History Management
+- **What it does**: Automatically tracks all played videos with metadata and provides management controls
+- **Why it's important**: Enables users to revisit content and organize their viewing habits
+- **How it works**: 
+  - Auto-saves video metadata (title, thumbnail, timestamp) upon playback
+  - Displays chronologically ordered list (newest first)
+  - Swipe-to-delete for removal
+  - Swipe-to-favorite for quick organization
+
+### 4. Channel Subscription System
+- **What it does**: Allows users to follow YouTube channels and view recent uploads with watch status
+- **Why it's important**: Provides curated content discovery without YouTube's algorithm interference
+- **How it works**:
+  - Add channels via URL or search by name
+  - Configurable lookback period (N days of recent uploads)
+  - Visual indicators for watched vs. unwatched videos
+  - Swipe-to-favorite functionality
+
+### 5. Favorites Collection
+- **What it does**: Curated list of user's favorite videos from history and channels
+- **Why it's important**: Quick access to preferred content
+- **How it works**: Swipe-to-remove management, accessible from multiple entry points
+
+## User Experience
+
+### User Personas
+- **Primary**: iOS power users who consume YouTube content regularly and value efficiency
+- **Secondary**: Content creators who need to quickly review videos from specific channels
+- **Tertiary**: Users seeking ad-free, distraction-free YouTube consumption
+
+### Key User Flows
+1. **Quick Play Flow**: Open app → Paste button appears → Tap → Video plays
+2. **Channel Discovery Flow**: Channels tab → Add channel → Configure lookback → Browse recent uploads
+3. **History Management Flow**: History tab → Browse previous videos → Swipe actions for organization
+4. **Favorites Curation Flow**: Any video → Swipe to favorite → Access via Favorites tab
+
+### UI/UX Considerations
+- **Tab-based navigation**: Three primary tabs (History, Channels, Favorites)
+- **Gesture-driven interactions**: Swipe actions for all list management
+- **Minimal, clean interface**: Focus on content over chrome
+- **Native iOS design patterns**: Follows Apple HIG for familiar user experience
+
+## Technical Architecture
+
+### System Components
+- **Video Player Engine**: AVPlayerViewController with YouTube URL resolution
+- **Data Persistence**: Core Data for local storage of history, channels, favorites
+- **Network Layer**: URLSession-based API client for YouTube metadata fetching
+- **Background Processing**: Background app refresh for channel updates
+- **Clipboard Monitoring**: UIPasteboard observation with privacy-conscious implementation
+
+### Data Models
+- **Video**: id, title, thumbnail_url, duration, channel_name, watch_date, is_favorite
+- **Channel**: id, name, url, lookback_days, last_updated, subscription_date
+- **PlaybackSession**: video_id, start_time, end_time, completion_percentage
+
+### APIs and Integrations
+- **YouTube Data API v3**: Video metadata, channel information, video listings
+- **YouTube URL Resolution**: Extract video IDs from various YouTube URL formats
+- **iOS AVKit**: Video playback and PiP functionality
+- **iOS Background Tasks**: Channel content updates
+
+### Infrastructure Requirements
+- **Local Storage**: Core Data stack for offline-first approach
+- **Network Handling**: Robust error handling and retry logic
+- **Memory Management**: Efficient image caching for thumbnails
+- **Privacy Compliance**: Minimal data collection, local-first storage
+
+## Development Roadmap
+
+### Phase 1: MVP Foundation
+- Basic video playback functionality
+- Simple paste & play mechanism
+- Core data models and persistence
+- Basic history tracking (auto-save played videos)
+- Single-tab interface focusing on history
+
+### Phase 2: Enhanced Playback
+- Picture-in-Picture implementation
+- Background playback support
+- Improved video player controls
+- Better error handling and loading states
+- Thumbnail fetching and caching
+
+### Phase 3: Multi-Tab Interface
+- Tab-based navigation implementation
+- History tab with full functionality (swipe actions)
+- Favorites tab with basic management
+- Swipe-to-favorite from history
+- Swipe-to-delete from history and favorites
+
+### Phase 4: Channel Management
+- Channels tab implementation
+- Add channel functionality (URL and search)
+- Channel video listing with lookback configuration
+- Watch status tracking and visual indicators
+- Swipe-to-favorite from channel videos
+
+### Phase 5: Polish & Optimization
+- Performance optimizations
+- Enhanced UI/UX polish
+- Advanced settings and preferences
+- Background refresh for channel updates
+- Comprehensive error handling and edge cases
+
+## Logical Dependency Chain
+
+### Foundation First (Phase 1)
+- Core Data stack must be established before any data persistence
+- Basic video playback is prerequisite for all other features
+- YouTube URL parsing and metadata fetching enables all content features
+
+### User-Visible Progress (Phase 2)
+- PiP and background playback provide immediate value differentiation
+- Thumbnail display makes the app visually appealing early
+- Error handling prevents user frustration during development
+
+### Feature Expansion (Phase 3)
+- Multi-tab navigation enables feature segregation
+- History management provides core user value
+- Favorites system creates user investment in the app
+
+### Advanced Features (Phase 4)
+- Channel management builds on established data patterns
+- Watch status requires existing video tracking infrastructure
+- Channel updates leverage background processing capabilities
+
+### Refinement (Phase 5)
+- Performance optimization requires complete feature set
+- Background refresh needs established channel management
+- Advanced settings build on proven core functionality
+
+## Risks and Mitigations
+
+### Technical Challenges
+- **YouTube API Rate Limits**: Implement intelligent caching and batch requests
+- **iOS Background Limitations**: Design around iOS background execution constraints
+- **Video URL Resolution**: Build robust parsing for various YouTube URL formats
+- **PiP Implementation Complexity**: Start with basic implementation, iterate on edge cases
+
+### MVP Definition
+- **Core Value**: Paste & play functionality with basic history
+- **Avoid Feature Creep**: Resist adding non-essential features to MVP
+- **User Feedback Loop**: Implement analytics to understand usage patterns
+
+### Resource Constraints
+- **API Costs**: Monitor YouTube API usage and implement efficient caching
+- **Development Time**: Prioritize features based on user impact vs. implementation complexity
+- **Testing Scope**: Focus testing on core user flows rather than edge cases initially
+
+## Appendix
+
+### Technical Specifications
+- **Minimum iOS Version**: iOS 14.0 (for PiP support)
+- **Target Devices**: iPhone and iPad with responsive design
+- **Storage Requirements**: Minimal local storage for metadata only
+- **Network Requirements**: Internet connection required for video streaming and metadata
+
+### Research Findings
+- **YouTube URL Formats**: Support for youtube.com, youtu.be, m.youtube.com variations
+- **iOS PiP Requirements**: AVPlayerViewController integration mandatory
+- **Background Playback**: Requires audio session configuration and background modes
+- **Core Data Best Practices**: Use NSPersistentContainer with background contexts for performance
