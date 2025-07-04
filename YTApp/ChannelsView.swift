@@ -5,14 +5,13 @@ struct ChannelsView: View {
     @ObservedObject var favoritesManager: FavoritesManager
     @ObservedObject var playbackPositionManager: PlaybackPositionManager
     let onVideoPlay: ((String) -> Void)?
-    let onVideoPlayFromBeginning: ((String) -> Void)?
     @State private var showingAddChannel = false
     @State private var selectedChannel: Channel?
     @State private var showingChannelDetail = false
     @State private var selectedChannelFilter: String? = nil // nil means show all
     @State private var showingChannelFilter = false
     
-    init(channelsManager: ChannelsManager? = nil, favoritesManager: FavoritesManager? = nil, playbackPositionManager: PlaybackPositionManager? = nil, onVideoPlay: ((String) -> Void)? = nil, onVideoPlayFromBeginning: ((String) -> Void)? = nil) {
+    init(channelsManager: ChannelsManager? = nil, favoritesManager: FavoritesManager? = nil, playbackPositionManager: PlaybackPositionManager? = nil, onVideoPlay: ((String) -> Void)? = nil) {
         if let manager = channelsManager {
             self.channelsManager = manager
         } else {
@@ -32,7 +31,6 @@ struct ChannelsView: View {
         }
         
         self.onVideoPlay = onVideoPlay
-        self.onVideoPlayFromBeginning = onVideoPlayFromBeginning
     }
     
     // Computed property to get all videos from all channels
@@ -134,8 +132,7 @@ struct ChannelsView: View {
                         channelsManager: channelsManager, 
                         favoritesManager: favoritesManager, 
                         playbackPositionManager: playbackPositionManager,
-                        onVideoPlay: onVideoPlay,
-                        onVideoPlayFromBeginning: onVideoPlayFromBeginning
+                        onVideoPlay: onVideoPlay
                     )
                 } else {
                     ChannelManagementView(channelsManager: channelsManager, favoritesManager: favoritesManager)
@@ -283,9 +280,9 @@ struct ChannelsView: View {
                             playbackPositionManager.clearPosition(for: video.id)
                             channelsManager.markVideoAsWatched(videoID: video.id)
                             
-                            // Use the restart callback
-                            if let onVideoPlayFromBeginning = onVideoPlayFromBeginning {
-                                onVideoPlayFromBeginning(video.id)
+                            // Use the regular play callback (position was cleared so it will start from beginning)
+                            if let onVideoPlay = onVideoPlay {
+                                onVideoPlay(video.id)
                             } else {
                                 print("🔄 Restarting video: \(video.title)")
                             }

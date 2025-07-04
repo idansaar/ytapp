@@ -5,14 +5,12 @@ struct VideoPlayerView: UIViewRepresentable {
     let videoID: String
     let onPlaybackStarted: (() -> Void)?
     let playbackPositionManager: PlaybackPositionManager?
-    let startFromBeginning: Bool
     
-    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil, startFromBeginning: Bool = false) {
-        print("🌐 [DEBUG] WebKit VideoPlayerView init - videoID: \(videoID), startFromBeginning: \(startFromBeginning)")
+    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil) {
+        print("🌐 [DEBUG] WebKit VideoPlayerView init - videoID: \(videoID)")
         self.videoID = videoID
         self.onPlaybackStarted = onPlaybackStarted
         self.playbackPositionManager = playbackPositionManager
-        self.startFromBeginning = startFromBeginning
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -51,7 +49,6 @@ struct VideoPlayerView: UIViewRepresentable {
         // Store the callback in coordinator
         context.coordinator.onPlaybackStarted = onPlaybackStarted
         context.coordinator.playbackPositionManager = playbackPositionManager
-        context.coordinator.startFromBeginning = startFromBeginning
         
         // Load the HTML content immediately
         let html = createHTML(for: videoID)
@@ -67,7 +64,6 @@ struct VideoPlayerView: UIViewRepresentable {
             context.coordinator.currentVideoID = videoID
             context.coordinator.onPlaybackStarted = onPlaybackStarted
             context.coordinator.playbackPositionManager = playbackPositionManager
-            context.coordinator.startFromBeginning = startFromBeginning
             
             let html = createHTML(for: videoID)
             uiView.loadHTMLString(html, baseURL: nil)
@@ -264,19 +260,17 @@ struct VideoPlayerView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(playbackPositionManager: playbackPositionManager, startFromBeginning: startFromBeginning)
+        Coordinator(playbackPositionManager: playbackPositionManager)
     }
 
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         var onPlaybackStarted: (() -> Void)?
         var currentVideoID: String = ""
         var playbackPositionManager: PlaybackPositionManager?
-        var startFromBeginning: Bool = false
         weak var webView: WKWebView?
         
-        init(playbackPositionManager: PlaybackPositionManager? = nil, startFromBeginning: Bool = false) {
+        init(playbackPositionManager: PlaybackPositionManager? = nil) {
             self.playbackPositionManager = playbackPositionManager
-            self.startFromBeginning = startFromBeginning
             super.init()
         }
         
@@ -339,7 +333,7 @@ struct VideoPlayerView: UIViewRepresentable {
             }
             
             // Check if we should resume from saved position
-            if !startFromBeginning, let savedPosition = playbackPositionManager?.getPosition(for: videoID) {
+            if let savedPosition = playbackPositionManager?.getPosition(for: videoID) {
                 let seekTime = savedPosition.position
                 print("🌐 [DEBUG] Resuming video \(videoID) from saved position: \(savedPosition.formattedPosition) (\(seekTime) seconds)")
                 
@@ -353,7 +347,7 @@ struct VideoPlayerView: UIViewRepresentable {
                     }
                 }
             } else {
-                print("🌐 [DEBUG] Starting video \(videoID) from beginning (startFromBeginning: \(startFromBeginning))")
+                print("🌐 [DEBUG] Starting video \(videoID) from beginning (no saved position)")
             }
         }
         

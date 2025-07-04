@@ -7,19 +7,17 @@ struct ChannelDetailView: View {
     let favoritesManager: FavoritesManager
     let playbackPositionManager: PlaybackPositionManager
     let onVideoPlay: ((String) -> Void)?
-    let onVideoPlayFromBeginning: ((String) -> Void)?
     
     @State private var videos: [ChannelVideo] = []
     @State private var showingSettings = false
     @State private var isRefreshing = false
     
-    init(channel: Channel, channelsManager: ChannelsManager, favoritesManager: FavoritesManager, playbackPositionManager: PlaybackPositionManager, onVideoPlay: ((String) -> Void)? = nil, onVideoPlayFromBeginning: ((String) -> Void)? = nil) {
+    init(channel: Channel, channelsManager: ChannelsManager, favoritesManager: FavoritesManager, playbackPositionManager: PlaybackPositionManager, onVideoPlay: ((String) -> Void)? = nil) {
         self.channel = channel
         self.channelsManager = channelsManager
         self.favoritesManager = favoritesManager
         self.playbackPositionManager = playbackPositionManager
         self.onVideoPlay = onVideoPlay
-        self.onVideoPlayFromBeginning = onVideoPlayFromBeginning
     }
     
     var body: some View {
@@ -213,9 +211,9 @@ struct ChannelDetailView: View {
                         channelsManager.markVideoAsWatched(videoID: video.id)
                         loadVideos() // Refresh to show updated watch status
                         
-                        // Use the restart callback if available
-                        if let onVideoPlayFromBeginning = onVideoPlayFromBeginning {
-                            onVideoPlayFromBeginning(video.id)
+                        // Use the regular play callback (position was cleared so it will start from beginning)
+                        if let onVideoPlay = onVideoPlay {
+                            onVideoPlay(video.id)
                             // Dismiss the detail view to show the main player
                             presentationMode.wrappedValue.dismiss()
                         } else {

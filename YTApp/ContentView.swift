@@ -10,12 +10,9 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
-    @State private var useAVPlayer = true // Toggle between WebKit and AVKit players - Default to AVKit for position tracking
-    @State private var showPlayerSettings = false
-    @State private var startFromBeginning = false // Flag to control resume vs restart
     
     init() {
-        print("🚀 [DEBUG] ContentView initialized - useAVPlayer: \(true)")
+        print("🚀 [DEBUG] ContentView initialized - WebKit only mode")
     }
 
     var body: some View {
@@ -44,61 +41,24 @@ struct ContentView: View {
                     .buttonStyle(PlainButtonStyle())
                     
                     Spacer()
-                    
-                    // Player type toggle
-                    Button(action: {
-                        showPlayerSettings.toggle()
-                    }) {
-                        Image(systemName: "gearshape.fill")
-                            .foregroundColor(.blue)
-                            .font(.title2)
-                    }
                 }
                 .padding(.horizontal)
                 
                 // Video player window
                 if let videoID = currentVideoID {
-                    Group {
-                        if useAVPlayer {
-                            // AVKit player with PiP support and position tracking
-                            AVVideoPlayerView(
-                                videoID: videoID,
-                                playbackPositionManager: playbackPositionManager,
-                                startFromBeginning: startFromBeginning,
-                                onPlaybackStarted: {
-                                    // History already added in setCurrentVideo, just log playback start
-                                    print("▶️ AVPlayer playback started for: \(videoID)")
-                                },
-                                onPlaybackPositionChanged: { position, duration in
-                                    // Position is automatically saved by PlaybackPositionManager
-                                    print("⏱️ Playback position: \(Int(position))/\(Int(duration)) seconds")
-                                }
-                            )
-                            .aspectRatio(16/9, contentMode: .fit)
-                            .frame(maxHeight: 220)
-                            .cornerRadius(12)
-                        } else {
-                            // WebKit player (original)
-                            VideoPlayerView(
-                                videoID: videoID,
-                                onPlaybackStarted: {
-                                    // History already added in setCurrentVideo, just log playback start
-                                    print("▶️ WebKit playback started for: \(videoID)")
-                                },
-                                playbackPositionManager: playbackPositionManager,
-                                startFromBeginning: startFromBeginning
-                            )
-                            .aspectRatio(16/9, contentMode: .fit)
-                            .frame(maxHeight: 220)
-                            .cornerRadius(12)
-                        }
-                    }
+                    // WebKit player with position tracking
+                    VideoPlayerView(
+                        videoID: videoID,
+                        onPlaybackStarted: {
+                            print("▶️ WebKit playback started for: \(videoID)")
+                        },
+                        playbackPositionManager: playbackPositionManager
+                    )
+                    .aspectRatio(16/9, contentMode: .fit)
+                    .frame(maxHeight: 220)
+                    .cornerRadius(12)
                     .onAppear {
-                        if useAVPlayer {
-                            print("🎬 [DEBUG] Using AVKit player (with position tracking) for videoID: \(videoID)")
-                        } else {
-                            print("🌐 [DEBUG] Using WebKit player (NO position tracking) for videoID: \(videoID)")
-                        }
+                        print("🌐 [DEBUG] Using WebKit player for videoID: \(videoID)")
                     }
                     .padding(.horizontal)
                     .id(videoID) // Use ID to prevent unnecessary updates
@@ -144,14 +104,6 @@ struct ContentView: View {
                     playbackPositionManager: playbackPositionManager,
                     onVideoPlay: { videoID in
                         print("📺 Playing video from channels: \(videoID)")
-                        startFromBeginning = false // Resume from saved position
-                        setCurrentVideo(videoID)
-                        // Mark video as watched in channels
-                        channelsManager.markVideoAsWatched(videoID: videoID)
-                    },
-                    onVideoPlayFromBeginning: { videoID in
-                        print("🔄 Restarting video from beginning: \(videoID)")
-                        startFromBeginning = true // Start from beginning
                         setCurrentVideo(videoID)
                         // Mark video as watched in channels
                         channelsManager.markVideoAsWatched(videoID: videoID)
@@ -190,18 +142,10 @@ struct ContentView: View {
                 }
             }
         }
-        .onAppear {
-            // Configure background playback on app launch
-            AVVideoPlayerView.configureBackgroundPlayback()
-        }
-        .sheet(isPresented: $showPlayerSettings) {
-            PlayerSettingsView(useAVPlayer: $useAVPlayer)
-        }
     }
     
     private func setCurrentVideo(_ videoID: String) {
         print("🎯 [DEBUG] setCurrentVideo called with videoID: \(videoID)")
-        print("🎯 [DEBUG] Current useAVPlayer: \(useAVPlayer)")
         
         // Only update if it's actually a different video
         if currentVideoID != videoID {
