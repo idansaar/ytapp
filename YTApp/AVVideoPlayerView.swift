@@ -157,6 +157,7 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
         }
         
         func setupPlayer(_ player: AVPlayer, for videoID: String) {
+            print("🎮 [DEBUG] setupPlayer called for videoID: \(videoID)")
             self.player = player
             self.currentVideoID = videoID
             
@@ -165,17 +166,31 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
             
             // Restore playback position if not starting from beginning
             if !startFromBeginning, let savedPosition = playbackPositionManager.getPosition(for: videoID) {
+                print("🎬 [DEBUG] Starting video \(videoID) from saved position: \(savedPosition.formattedPosition) (\(savedPosition.position) seconds)")
                 let seekTime = CMTime(seconds: savedPosition.position, preferredTimescale: 1000)
                 player.seek(to: seekTime) { completed in
                     if completed {
-                        print("▶️ Resumed playback at \(savedPosition.formattedPosition)")
+                        print("▶️ [DEBUG] Successfully resumed playback at \(savedPosition.formattedPosition)")
+                    } else {
+                        print("❌ [DEBUG] Failed to seek to saved position for video \(videoID)")
                     }
+                }
+            } else {
+                if startFromBeginning {
+                    print("🎬 [DEBUG] Starting video \(videoID) from beginning (startFromBeginning = true)")
+                } else {
+                    print("🎬 [DEBUG] Starting video \(videoID) from beginning (no saved position found)")
                 }
             }
         }
         
         private func addTimeObserver() {
-            guard let player = player else { return }
+            guard let player = player else { 
+                print("❌ [DEBUG] Cannot add time observer - no player")
+                return 
+            }
+            
+            print("🎯 [DEBUG] Adding time observer for position tracking")
             
             // Remove existing observer
             removeTimeObserver()
@@ -185,22 +200,34 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
             timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
                 self?.handleTimeUpdate(time)
             }
+            
+            print("✅ [DEBUG] Time observer added successfully - will fire every 5 seconds")
         }
         
         private func removeTimeObserver() {
             if let observer = timeObserver, let player = player {
+                print("🗑️ [DEBUG] Removing existing time observer")
                 player.removeTimeObserver(observer)
                 timeObserver = nil
+            } else {
+                print("ℹ️ [DEBUG] No time observer to remove")
             }
         }
         
         private func handleTimeUpdate(_ time: CMTime) {
+            print("🕐 [DEBUG] handleTimeUpdate called - Time: \(String(format: "%.1f", time.seconds))s")
+            
             guard let player = player,
                   let duration = player.currentItem?.duration,
-                  duration.isValid && !duration.isIndefinite else { return }
+                  duration.isValid && !duration.isIndefinite else { 
+                print("🚫 [DEBUG] handleTimeUpdate early return - Invalid player/duration")
+                return 
+            }
             
             let currentTime = time.seconds
             let totalDuration = duration.seconds
+            
+            print("📊 [DEBUG] Time update - Current: \(String(format: "%.1f", currentTime))s, Duration: \(String(format: "%.1f", totalDuration))s")
             
             // Save position every 5 seconds
             if currentTime > 0 && totalDuration > 0 {
@@ -209,9 +236,12 @@ struct AVVideoPlayerView: UIViewControllerRepresentable {
                     position: currentTime,
                     duration: totalDuration
                 )
+                print("⏱️ [DEBUG] Updated position for \(currentVideoID): \(Int(currentTime))s/\(Int(totalDuration))s (\(String(format: "%.1f", (currentTime/totalDuration)*100))%)")
                 
                 // Notify callback
                 onPlaybackPositionChanged?(currentTime, totalDuration)
+            } else {
+                print("⏸️ [DEBUG] Skipping position save - Current: \(String(format: "%.1f", currentTime))s, Duration: \(String(format: "%.1f", totalDuration))s")
             }
         }
         

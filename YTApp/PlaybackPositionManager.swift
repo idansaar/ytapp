@@ -20,14 +20,14 @@ class PlaybackPositionManager: ObservableObject {
         }
         
         var formattedPosition: String {
-            return formatTime(position)
+            return PlaybackPosition.formatTime(position)
         }
         
         var formattedDuration: String {
-            return formatTime(duration)
+            return PlaybackPosition.formatTime(duration)
         }
         
-        private func formatTime(_ seconds: Double) -> String {
+        static func formatTime(_ seconds: Double) -> String {
             let totalSeconds = Int(seconds)
             let hours = totalSeconds / 3600
             let minutes = (totalSeconds % 3600) / 60
@@ -48,7 +48,18 @@ class PlaybackPositionManager: ObservableObject {
     // MARK: - Public Methods
     
     func savePosition(videoID: String, position: Double, duration: Double) {
-        print("💾 Saving playback position for \(videoID): \(position)/\(duration) seconds")
+        let previousPosition = positions[videoID]?.position ?? 0
+        let isNewVideo = positions[videoID] == nil
+        
+        print("💾 [DEBUG] Saving playback position for \(videoID):")
+        print("   📍 Position: \(String(format: "%.1f", position))s -> \(PlaybackPosition.formatTime(position))")
+        print("   📏 Duration: \(String(format: "%.1f", duration))s -> \(PlaybackPosition.formatTime(duration))")
+        print("   📊 Progress: \(String(format: "%.1f", (position/duration)*100))%")
+        if !isNewVideo {
+            print("   🔄 Previous: \(String(format: "%.1f", previousPosition))s (Δ: +\(String(format: "%.1f", position - previousPosition))s)")
+        } else {
+            print("   🆕 First position save for this video")
+        }
         
         let playbackPosition = PlaybackPosition(
             videoID: videoID,
@@ -62,7 +73,13 @@ class PlaybackPositionManager: ObservableObject {
     }
     
     func getPosition(for videoID: String) -> PlaybackPosition? {
-        return positions[videoID]
+        let position = positions[videoID]
+        if let pos = position {
+            print("📖 [DEBUG] Retrieved saved position for \(videoID): \(pos.formattedPosition) (\(String(format: "%.1f", pos.position))s)")
+        } else {
+            print("📖 [DEBUG] No saved position found for \(videoID)")
+        }
+        return position
     }
     
     func clearPosition(for videoID: String) {

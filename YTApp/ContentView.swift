@@ -10,9 +10,13 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var currentVideoID: String? = nil
     @State private var hasAddedToHistory = false // Track if we've already added to history
-    @State private var useAVPlayer = false // Toggle between WebKit and AVKit players
+    @State private var useAVPlayer = true // Toggle between WebKit and AVKit players - Default to AVKit for position tracking
     @State private var showPlayerSettings = false
     @State private var startFromBeginning = false // Flag to control resume vs restart
+    
+    init() {
+        print("🚀 [DEBUG] ContentView initialized - useAVPlayer: \(true)")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -96,13 +100,25 @@ struct ContentView: View {
                             )
                         } else {
                             // WebKit player (original)
-                            VideoPlayerView(videoID: videoID) {
-                                // History already added in setCurrentVideo, just log playback start
-                                print("▶️ WebKit playback started for: \(videoID)")
-                            }
+                            VideoPlayerView(
+                                videoID: videoID,
+                                onPlaybackStarted: {
+                                    // History already added in setCurrentVideo, just log playback start
+                                    print("▶️ WebKit playback started for: \(videoID)")
+                                },
+                                playbackPositionManager: playbackPositionManager,
+                                startFromBeginning: startFromBeginning
+                            )
                             .aspectRatio(16/9, contentMode: .fit)
                             .frame(maxHeight: 220)
                             .cornerRadius(12)
+                        }
+                    }
+                    .onAppear {
+                        if useAVPlayer {
+                            print("🎬 [DEBUG] Using AVKit player (with position tracking) for videoID: \(videoID)")
+                        } else {
+                            print("🌐 [DEBUG] Using WebKit player (NO position tracking) for videoID: \(videoID)")
                         }
                     }
                     .padding(.horizontal)
@@ -205,8 +221,12 @@ struct ContentView: View {
     }
     
     private func setCurrentVideo(_ videoID: String) {
+        print("🎯 [DEBUG] setCurrentVideo called with videoID: \(videoID)")
+        print("🎯 [DEBUG] Current useAVPlayer: \(useAVPlayer)")
+        
         // Only update if it's actually a different video
         if currentVideoID != videoID {
+            print("🎯 [DEBUG] Setting new video (different from current)")
             currentVideoID = videoID
             hasAddedToHistory = false // Reset history flag for new video
             
@@ -221,6 +241,8 @@ struct ContentView: View {
             favoritesManager.promoteVideoToTop(videoID: videoID, title: videoTitle)
             
             print("🎬 Set current video to: \(videoID)")
+        } else {
+            print("🎯 [DEBUG] Same video ID, not updating")
         }
     }
     
