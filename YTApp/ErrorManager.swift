@@ -133,6 +133,16 @@ class ErrorManager: ObservableObject {
             print("📍 [CONTEXT] \(context)")
         }
         
+        // Provide haptic feedback based on error severity
+        switch error.severity {
+        case .info:
+            HapticManager.shared.lightImpact()
+        case .warning:
+            HapticManager.shared.warning()
+        case .error:
+            HapticManager.shared.errorOccurred()
+        }
+        
         DispatchQueue.main.async {
             self.currentError = error
             self.addToHistory(error, context: context)

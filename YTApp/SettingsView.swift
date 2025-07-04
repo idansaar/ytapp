@@ -24,16 +24,19 @@ struct SettingsView: View {
                 Section(header: Text("Playback")) {
                     Toggle("Auto-play from Clipboard", isOn: $autoPlayFromClipboard)
                         .onChange(of: autoPlayFromClipboard) { oldValue, newValue in
+                            HapticManager.shared.settingsChange()
                             UserDefaults.standard.set(newValue, forKey: "autoPlayFromClipboard")
                         }
                     
                     Toggle("Save Playback Position", isOn: $savePlaybackPosition)
                         .onChange(of: savePlaybackPosition) { oldValue, newValue in
+                            HapticManager.shared.settingsChange()
                             UserDefaults.standard.set(newValue, forKey: "savePlaybackPosition")
                         }
                     
                     Toggle("Background Playback", isOn: $backgroundPlayback)
                         .onChange(of: backgroundPlayback) { oldValue, newValue in
+                            HapticManager.shared.settingsChange()
                             UserDefaults.standard.set(newValue, forKey: "backgroundPlayback")
                         }
                 }
@@ -42,6 +45,7 @@ struct SettingsView: View {
                 Section(header: Text("Interface")) {
                     Toggle("Show Channel Thumbnails", isOn: $showChannelThumbnails)
                         .onChange(of: showChannelThumbnails) { oldValue, newValue in
+                            HapticManager.shared.settingsChange()
                             UserDefaults.standard.set(newValue, forKey: "showChannelThumbnails")
                         }
                 }
@@ -58,6 +62,7 @@ struct SettingsView: View {
                         }
                         Spacer()
                         Button("Clear") {
+                            HapticManager.shared.dataCleared()
                             historyManager.clearAllHistory()
                         }
                         .foregroundColor(.red)

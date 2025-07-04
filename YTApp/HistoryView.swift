@@ -64,6 +64,7 @@ struct HistoryView: View {
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 // Delete action
                                 Button(role: .destructive) {
+                                    HapticManager.shared.deleteItem()
                                     if let index = historyManager.history.firstIndex(where: { $0.id == video.id }) {
                                         historyManager.deleteVideo(at: IndexSet(integer: index))
                                     }
@@ -74,8 +75,10 @@ struct HistoryView: View {
                                 // Favorite action
                                 Button {
                                     if favoritesManager.isFavorite(videoID: video.id) {
+                                        HapticManager.shared.removeFromFavorites()
                                         favoritesManager.removeFavorite(videoID: video.id)
                                     } else {
+                                        HapticManager.shared.addToFavorites()
                                         favoritesManager.addFavorite(video) // Pass full video object
                                     }
                                 } label: {
@@ -93,6 +96,7 @@ struct HistoryView: View {
             .navigationTitle("History")
             .listStyle(PlainListStyle())
             .refreshable {
+                HapticManager.shared.pullToRefresh()
                 isRefreshing = true
                 // Simulate refresh delay for better UX
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

@@ -46,6 +46,7 @@ struct VideoPlayerView: View {
                                 .font(.caption)
                         }
                     )
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
             
             // Error Overlay
@@ -68,6 +69,7 @@ struct VideoPlayerView: View {
                                 .multilineTextAlignment(.center)
                             
                             Button("Retry") {
+                                HapticManager.shared.buttonTap()
                                 isLoading = true
                                 hasError = false
                                 // The WebKit view will automatically reload
@@ -76,8 +78,11 @@ struct VideoPlayerView: View {
                         }
                         .padding()
                     )
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: isLoading)
+        .animation(.easeInOut(duration: 0.3), value: hasError)
         .onAppear {
             isLoading = true
             hasError = false

@@ -25,6 +25,7 @@ struct ContentView: View {
                 HStack {
                     // Paste & Play button
                     Button(action: {
+                        HapticManager.shared.clipboardDetected()
                         playFromClipboard()
                     }) {
                         HStack(spacing: 8) {
@@ -46,6 +47,7 @@ struct ContentView: View {
                     
                     // Settings button
                     Button(action: {
+                        HapticManager.shared.buttonTap()
                         showingSettings = true
                     }) {
                         Image(systemName: "gearshape.fill")
@@ -134,6 +136,9 @@ struct ContentView: View {
                     Image(systemName: "star")
                     Text("Favorites") 
                 }.tag(2)
+            }
+            .onChange(of: selectedTab) { oldValue, newValue in
+                HapticManager.shared.tabSwitch()
             }
         }
         .sheet(isPresented: $showingSettings) {
