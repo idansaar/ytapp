@@ -1,5 +1,9 @@
 # YTApp - iOS YouTube Video Player
 
+![Project Status](https://img.shields.io/badge/Project%20Status-100%25%20COMPLETE-brightgreen)
+![Tasks](https://img.shields.io/badge/Tasks-20%2F20%20Complete-success)
+![Phase](https://img.shields.io/badge/Phase-5%2F5%20Complete-blue)
+
 ## Overview
 YTApp is a streamlined iOS application designed for seamless YouTube video consumption with enhanced user experience features. The app provides instant paste-and-play functionality, background playback capabilities, and intelligent video organization through history, channel subscriptions, and favorites management.
 
