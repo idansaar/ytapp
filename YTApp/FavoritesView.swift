@@ -3,6 +3,7 @@ import SwiftUI
 struct FavoritesView: View {
     @ObservedObject var favoritesManager: FavoritesManager
     let onVideoSelected: (String) -> Void
+    @State private var isRefreshing = false
     @State private var showingClearAlert = false
     
     var body: some View {
@@ -72,6 +73,13 @@ struct FavoritesView: View {
             }
             .navigationTitle("Favorites")
             .listStyle(PlainListStyle())
+            .refreshable {
+                isRefreshing = true
+                // Simulate refresh delay for better UX
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isRefreshing = false
+                }
+            }
             .toolbar {
                 if !favoritesManager.favorites.isEmpty {
                     ToolbarItem(placement: .navigationBarTrailing) {

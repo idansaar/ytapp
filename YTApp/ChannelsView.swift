@@ -10,6 +10,7 @@ struct ChannelsView: View {
     @State private var showingChannelDetail = false
     @State private var selectedChannelFilter: String? = nil // nil means show all
     @State private var showingChannelFilter = false
+    @State private var isLoadingVideos = false
     
     init(channelsManager: ChannelsManager? = nil, favoritesManager: FavoritesManager? = nil, playbackPositionManager: PlaybackPositionManager? = nil, onVideoPlay: ((String) -> Void)? = nil) {
         if let manager = channelsManager {
@@ -306,7 +307,12 @@ struct ChannelsView: View {
             }
             .listStyle(PlainListStyle())
             .refreshable {
+                isLoadingVideos = true
                 channelsManager.refreshAllChannels()
+                // Simulate loading delay for better UX
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isLoadingVideos = false
+                }
             }
         }
     }

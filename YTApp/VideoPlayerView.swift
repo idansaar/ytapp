@@ -1,16 +1,105 @@
 import SwiftUI
 import WebKit
 
-struct VideoPlayerView: UIViewRepresentable {
+// MARK: - Main SwiftUI View with Loading States
+struct VideoPlayerView: View {
     let videoID: String
     let onPlaybackStarted: (() -> Void)?
     let playbackPositionManager: PlaybackPositionManager?
     
+    @State private var isLoading = true
+    @State private var hasError = false
+    
     init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil) {
-        print("🌐 [DEBUG] WebKit VideoPlayerView init - videoID: \(videoID)")
+        print("🌐 [DEBUG] VideoPlayerView init - videoID: \(videoID)")
         self.videoID = videoID
         self.onPlaybackStarted = onPlaybackStarted
         self.playbackPositionManager = playbackPositionManager
+    }
+    
+    var body: some View {
+        ZStack {
+            // WebKit Player
+            WebKitVideoPlayer(
+                videoID: videoID,
+                onPlaybackStarted: onPlaybackStarted,
+                playbackPositionManager: playbackPositionManager,
+                isLoading: $isLoading,
+                hasError: $hasError
+            )
+            
+            // Loading Overlay
+            if isLoading {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.black.opacity(0.8))
+                    .overlay(
+                        VStack(spacing: 12) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .scaleEffect(1.2)
+                            
+                            Text("Loading Video...")
+                                .foregroundColor(.white)
+                                .font(.caption)
+                        }
+                    )
+            }
+            
+            // Error Overlay
+            if hasError && !isLoading {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.red.opacity(0.1))
+                    .overlay(
+                        VStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.title)
+                                .foregroundColor(.red)
+                            
+                            Text("Failed to Load Video")
+                                .foregroundColor(.primary)
+                                .font(.headline)
+                            
+                            Text("Please check your connection and try again")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                                .multilineTextAlignment(.center)
+                            
+                            Button("Retry") {
+                                isLoading = true
+                                hasError = false
+                                // The WebKit view will automatically reload
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .padding()
+                    )
+            }
+        }
+        .onAppear {
+            isLoading = true
+            hasError = false
+        }
+        .onChange(of: videoID) { oldValue, newValue in
+            isLoading = true
+            hasError = false
+        }
+    }
+}
+
+// MARK: - WebKit UIViewRepresentable
+struct WebKitVideoPlayer: UIViewRepresentable {
+    let videoID: String
+    let onPlaybackStarted: (() -> Void)?
+    let playbackPositionManager: PlaybackPositionManager?
+    @Binding var isLoading: Bool
+    @Binding var hasError: Bool
+    
+    init(videoID: String, onPlaybackStarted: (() -> Void)? = nil, playbackPositionManager: PlaybackPositionManager? = nil, isLoading: Binding<Bool>, hasError: Binding<Bool>) {
+        self.videoID = videoID
+        self.onPlaybackStarted = onPlaybackStarted
+        self.playbackPositionManager = playbackPositionManager
+        self._isLoading = isLoading
+        self._hasError = hasError
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -260,7 +349,7 @@ struct VideoPlayerView: UIViewRepresentable {
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(playbackPositionManager: playbackPositionManager)
+        Coordinator(parent: self)
     }
 
     class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
@@ -268,9 +357,11 @@ struct VideoPlayerView: UIViewRepresentable {
         var currentVideoID: String = ""
         var playbackPositionManager: PlaybackPositionManager?
         weak var webView: WKWebView?
+        var parent: WebKitVideoPlayer
         
-        init(playbackPositionManager: PlaybackPositionManager? = nil) {
-            self.playbackPositionManager = playbackPositionManager
+        init(parent: WebKitVideoPlayer) {
+            self.parent = parent
+            self.playbackPositionManager = parent.playbackPositionManager
             super.init()
         }
         
@@ -285,6 +376,12 @@ struct VideoPlayerView: UIViewRepresentable {
             case "playerReady":
                 if let videoID = message.body as? String {
                     print("🌐 [DEBUG] Player ready for: \(videoID)")
+                    
+                    // Update loading state
+                    DispatchQueue.main.async {
+                        self.parent.isLoading = false
+                        self.parent.hasError = false
+                    }
                     
                     // Check for saved position and seek if needed
                     DispatchQueue.main.async {
@@ -319,6 +416,12 @@ struct VideoPlayerView: UIViewRepresentable {
             case "errorHandler":
                 if let errorMessage = message.body as? String {
                     print("❌ Video Player Error: \(errorMessage)")
+                    
+                    // Update error state
+                    DispatchQueue.main.async {
+                        self.parent.isLoading = false
+                        self.parent.hasError = true
+                    }
                 }
             default:
                 print("🌐 [DEBUG] Unknown message: \(message.name)")

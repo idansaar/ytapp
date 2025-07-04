@@ -5,6 +5,7 @@ struct HistoryView: View {
     @ObservedObject var favoritesManager: FavoritesManager
     let onVideoSelected: (String) -> Void
     @State private var showingClearAlert = false
+    @State private var isRefreshing = false
     
     var body: some View {
         NavigationView {
@@ -91,6 +92,13 @@ struct HistoryView: View {
             }
             .navigationTitle("History")
             .listStyle(PlainListStyle())
+            .refreshable {
+                isRefreshing = true
+                // Simulate refresh delay for better UX
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isRefreshing = false
+                }
+            }
             .toolbar {
                 if !historyManager.history.isEmpty {
                     ToolbarItem(placement: .navigationBarTrailing) {
