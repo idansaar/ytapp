@@ -11,7 +11,7 @@ class PlaybackPositionManager: ObservableObject {
         let lastUpdated: Date
         
         var isPartiallyWatched: Bool {
-            return position > 30 && position < (duration - 30) // At least 30 seconds in, not near the end
+            return position > 5 && position < (duration - 5) // At least 5 seconds in, not near the end
         }
         
         var watchProgress: Double {
